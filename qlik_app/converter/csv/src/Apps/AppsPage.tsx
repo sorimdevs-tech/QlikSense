@@ -7,6 +7,7 @@ import { useNavigate } from "react-router-dom";
 interface App {
   id: string;
   name: string;
+  lastModifiedDate?: string;
 }
 
 export default function AppsPage() {
@@ -66,6 +67,22 @@ export default function AppsPage() {
     return <div className="wrap">Loading apps…</div>;
   }
 
+
+
+  const getRelativeTime = (dateStr?: string) => {
+  if (!dateStr) return "Updated —";
+
+  const diffMs = Date.now() - new Date(dateStr).getTime();
+  const diffMin = Math.floor(diffMs / 60000);
+  const diffHr = Math.floor(diffMin / 60);
+  const diffDay = Math.floor(diffHr / 24);
+
+  if (diffMin < 1) return "Updated just now";
+  if (diffMin < 60) return `Updated ${diffMin} minute${diffMin > 1 ? "s" : ""} ago`;
+  if (diffHr < 24) return `Updated ${diffHr} hour${diffHr > 1 ? "s" : ""} ago`;
+  return `Updated ${diffDay} day${diffDay > 1 ? "s" : ""} ago`;
+};
+
   return (
     <div className="wrap">
       {/* HEADER */}
@@ -98,31 +115,34 @@ export default function AppsPage() {
 
             {/* FOOTER */}
             <div className="card-footer">
-              <span className="app-label">
-                {app.name}
-              </span>
+  {/* LEFT SIDE */}
+  <div className="footer-left">
+    <span className="app-label">{app.name}</span>
 
-              <div className="right-actions">
-                {/* TABLE COUNT */}
-                <span className="badge">
-                  {tableCount[app.id] ?? 0}
-                </span>
+    <span className="last-modified">
+      {getRelativeTime(app.lastModifiedDate)}
+    </span>
+  </div>
 
-                {/* FAVORITE */}
-                <span
-                  className="fav-icon"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    toggleFav(app.id);
-                  }}
-                >
-                  {favourites.includes(app.id) ? "★" : "☆"}
-                </span>
+  {/* RIGHT SIDE */}
+  <div className="right-actions">
+    <span className="badge">
+      {tableCount[app.id] ?? 0}
+    </span>
 
-                {/* MENU */}
-                <span className="dot-menu">⋯</span>
-              </div>
-            </div>
+    <span
+      className="fav-icon"
+      onClick={(e) => {
+        e.stopPropagation();
+        toggleFav(app.id);
+      }}
+    >
+      {favourites.includes(app.id) ? "★" : "☆"}
+    </span>
+
+    <span className="dot-menu">⋯</span>
+  </div>
+</div>
           </div>
         ))}
       </div>

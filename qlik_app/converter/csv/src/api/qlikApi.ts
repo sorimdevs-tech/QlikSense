@@ -6,10 +6,13 @@ const BASE_URL = "http://localhost:8000";
 // const BASE_URL = "https://c8vlzp3sx6akvnh.in.qlikcloud.com/";
  
 // Convert FastAPI response → simple format
+// ✅ UPDATE HERE
 const mapApps = (data: any[]) =>
   data.map((a: any) => ({
     id: a.attributes?.id,
     name: a.attributes?.name,
+    lastModifiedDate:
+      a.attributes?.modifiedDate || a.attributes?.lastReloadTime,
   }));
 // login test user 
 
