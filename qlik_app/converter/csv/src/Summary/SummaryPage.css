@@ -1,0 +1,440 @@
+PAGE WRAP
+.summary-layout {
+  display: flex;
+  height: 100vh;           /* full screen */
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+    sans-serif;
+  /* font-size: 14px; */
+  color: #1f1f1f;
+}
+
+/* LEFT PANEL – same as before */
+.left-panel {
+  display: flex;
+  width: 220px;
+  /* border-right: 1px solid #ddd; */
+  padding: 12px 10px;
+  border-radius: 8px;
+  box-sizing: border-box;
+  background-color: #fafafa;
+  height: 100vh;
+  overflow-y: auto;
+  flex-direction: column;
+}
+
+.panel-header {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #ddd;
+}
+
+.back-btn {
+  padding: 6px 10px;
+  background: #f0f0f0;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 13px;
+  transition: all 0.2s ease;
+}
+
+.back-btn:hover {
+  background: #e0e0e0;
+  border-color: #999;
+}
+
+.title {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.no-tables {
+  color: #999;
+  font-size: 12px;
+  text-align: center;
+  padding: 20px 10px;
+}
+
+/* RIGHT PANEL: column flex */
+.right-panel {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  padding: 16px 18px;
+  box-sizing: border-box;
+  overflow: hidden;        /* important: table area scroll only */
+  padding-top: 0;
+}
+
+/* HEADER + SUMMARY stay at natural height */
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  /* margin-bottom: 12px; */
+}
+
+.summary-box {
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  padding: 10px 12px;
+  margin-bottom: 10px;     /* small gap above table */
+  background-color: #fdfdfd;
+}
+
+/* TABLE WRAPPER TAKES REMAINING HEIGHT */
+.table-wrapper {
+  flex: 1;                 /* occupy all free space */
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  overflow: hidden;          /* scroll table inside */
+  background-color: #fff;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+/* TABLE FULL WIDTH */
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+   table-layout: fixed;  
+}
+
+.data-table th,
+.data-table td {
+  border-bottom: 1px solid #eee;
+  padding: 6px 8px;
+  text-align: left;
+  white-space: normal;
+  word-wrap: break-word;
+}
+
+.data-table thead {
+  position: sticky;
+  top: 0;
+  background-color: #f3f3f3;
+  z-index: 1;
+}
+
+/* OPTIONAL: footer pinned under table */
+.table-footer {
+  padding: 6px 8px;
+  font-size: 12px;
+  color: #666;
+}
+
+
+/* ================= Summary Table Styling ================= */
+.summary-report {
+  background: #fff;
+  padding: 20px;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  margin-bottom: 20px;
+  overflow-x: auto;
+  padding-top: 0;
+}
+
+.summary-report h3 {
+  font-size: 18px;
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.summary-report table {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: Arial, sans-serif;
+  font-size: 14px;
+}
+
+.summary-report th,
+.summary-report td {
+  border: 1px solid #ddd;
+  padding: 8px 12px;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  text-align:center;
+  position: sticky;
+}
+
+.summary-report th {
+  background-color: #f4f6f9;
+  font-weight: 600;
+  
+}
+
+.summary-report tr:nth-child(even) {
+  background-color: #fafafa;
+}
+
+.summary-report tr:hover {
+  background-color: #f1f5f9;
+}
+
+.summary-report td {
+  white-space: nowrap;
+}
+
+.summary-report td.value {
+  /* text-align: right; */
+  
+}
+
+/* Optional: format numbers nicely (for JS/TS values) */
+.summary-report td.value::after {
+  content: '';
+}
+
+/* Responsive for small screens */
+@media (max-width: 768px) {
+  .summary-report table,
+  .summary-report th,
+  .summary-report td {
+    font-size: 12px;
+    padding: 6px 8px;
+  }
+}
+
+
+/* ================== Summary Report ================== */
+.summary-report-wrapper {
+  width: 100%;
+  background: #fff;
+  padding: 16px;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  margin-bottom: 24px;
+  overflow-x: auto;
+}
+
+.summary-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.summary-header h3 {
+  font-size: 16px;
+  font-weight: 600;
+  margin: 0;
+}
+
+.download-btn {
+  background-color: #0072c6;
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  font-size: 12px;
+  padding: 6px 12px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.download-btn:hover {
+  background-color: #005fa3;
+}
+
+.summary-table-container {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.summary-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: "Source Sans Pro", Helvetica, Arial, sans-serif;
+  font-size: 14px;
+}
+
+.summary-table th,
+.summary-table td {
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  padding: 8px 12px;
+  text-align: left;
+}
+
+.summary-table th {
+  background-color: #f4f6f9;
+  font-weight: 600;
+}
+
+.summary-table tr:nth-child(even) {
+  background-color: #fafafa;
+}
+
+.summary-table tr:hover {
+  background-color: #f1f5f9;
+}
+
+.summary-table td.value {
+  text-align: right;
+  font-weight: 500;
+}
+
+.summary-layout{
+  display: flex;
+  /* height: 100vh;           full screen */
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-size: 14px;
+  color: #1f1f1f;
+}
+
+.data-section {
+  background: white;
+  /* padding: 12px; */
+  border-radius: 8px;
+  /* margin-top: 10px; */
+}
+
+.bottom-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 10px;
+}
+
+.csv-btn {
+  padding: 6px 12px;
+  background: #1976d2;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.csv-btn:disabled {
+  opacity: 0.5;
+}
+
+.td,th{
+  min-width: 180px;
+}
+
+
+.summary-report table {
+  /* width: auto;                 */
+  border-collapse: collapse;
+}
+
+.summary-report th,
+.summary-report td {
+  padding: 8px 12px;
+  white-space: nowrap;         /**/
+}
+
+/* Notes column ku mattum correct width */
+/* .summary-report td:last-child {
+  min-width: 160px;            
+} */
+
+.summary-report{
+  height: 40vh;
+}
+
+
+.table-item {
+  padding: 10px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+/* 👉 THIS IS IMPORTANT */
+.table-item.active {
+  background-color: rgb(183 183 183);
+  border-radius: 10px;
+  font-weight: 600;
+      font-family: "Source Sans Pro", HelveticaNeue, "Helvetica Neue", Helvetica, Arial, sans-serif;
+}
+.table-item:hover {
+  background-color: rgb(215, 215, 215);;
+}
+
+.table-wrapper {
+  max-height: 200px;      /* unakku thevaiyana height */
+  overflow-y: auto;
+}
+
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.data-table thead th {
+  position: sticky;
+  top: 0;
+  background: 1px solid #eee;      /* header background must */
+  z-index: 2;
+}
+
+.empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: #999;
+  font-size: 16px;
+  text-align: center;
+}
+
+.empty p {
+  margin: 0;
+}
+
+/* SEARCH BOX */
+.search-box {
+  padding: 8px 0;
+  margin-bottom: 12px;
+}
+
+.search-input {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 13px;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  box-sizing: border-box;
+  transition: border-color 0.2s ease;
+}
+
+.search-input:focus {
+  outline: none;
+  border-color: #0a66c2;
+  box-shadow: 0 0 4px rgba(10, 102, 194, 0.2);
+}
+
+.search-input::placeholder {
+  color: #999;
+}
+
+/* EXPORT BUTTON */
+.export-btn {
+  padding: 8px 12px;
+  background: #ff9800;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 500;
+  transition: background 0.2s ease;
+  margin-right: 8px;
+}
+
+.export-btn:hover {
+  background: #f57c00;
+}
+
+.export-btn:active {
+  background: #e65100;
+}
+
+
