@@ -22,11 +22,11 @@ app = FastAPI(title="Qlik Sense Cloud API", version="2.0.0")
 
 app.include_router(login_router)
 
-# CORS Middleware
+# CORS Middleware - Configure for Render deployment
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],
-    allow_credentials=False,
+    allow_origins=["*"],  # Allow all origins for development
+    allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )

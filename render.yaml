@@ -1,0 +1,41 @@
+services:
+  # Backend API Service
+  - name: qlik-api
+    type: web
+    plan: free
+    region: oregon
+    branch: main
+    repo: https://github.com/sorimdevs-tech/qlikscence.git
+    buildCommand: pip install -r qlik_app/qlik/qlik-fastapi-backend/requirements.txt
+    startCommand: uvicorn qlik_app.qlik.qlik-fastapi-backend.main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.11"
+      - key: QLIK_CLIENT_ID
+        fromGroup: qlik-secrets
+      - key: QLIK_CLIENT_SECRET
+        fromGroup: qlik-secrets
+
+  # Frontend Static Site
+  - name: qlik-frontend
+    type: staticSite
+    plan: free
+    region: oregon
+    branch: main
+    repo: https://github.com/sorimdevs-tech/qlikscence.git
+    buildCommand: cd qlik_app/converter/csv && npm install && npm run build
+    staticPublishPath: qlik_app/converter/csv/dist
+    envVars:
+      - key: VITE_API_URL
+        fromService:
+          name: qlik-api
+          type: web
+          property: host
+
+envVarGroups:
+  - name: qlik-secrets
+    envVars:
+      - key: QLIK_CLIENT_ID
+        sync: false
+      - key: QLIK_CLIENT_SECRET
+        sync: false
