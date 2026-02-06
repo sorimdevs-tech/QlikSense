@@ -7,7 +7,7 @@ services:
     branch: main
     repo: https://github.com/sorimdevs-tech/qlikscence.git
     rootDirectory: /
-    buildCommand: pip install -r qlik_app/qlik/qlik-fastapi-backend/requirements.txt
+    buildCommand: pip install -r qlik_app/qlik/qlik-fastapi-backend/requirements.txt --no-cache-dir
     startCommand: uvicorn qlik_app.qlik.qlik-fastapi-backend.main:app --host 0.0.0.0 --port $PORT
     envVars:
       - key: PYTHON_VERSION
