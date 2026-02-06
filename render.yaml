@@ -19,9 +19,9 @@ services:
       - key: API_KEY
         fromGroup: qlik-secrets
       - key: QLIK_TENANT_URL
-        fromGroup: qlik-secrets
+        value: "https://c8vlzp3sx6akvnh.in.qlikcloud.com"
       - key: QLIK_API_BASE_URL
-        fromGroup: qlik-secrets
+        value: "https://c8vlzp3sx6akvnh.in.qlikcloud.com/api/v1"
 
   # Frontend Static Site
   - name: qlik-frontend
@@ -48,8 +48,4 @@ envVarGroups:
       - key: QLIK_CLIENT_SECRET
         sync: false
       - key: API_KEY
-        sync: false
-      - key: QLIK_TENANT_URL
-        sync: false
-      - key: QLIK_API_BASE_URL
         sync: false
