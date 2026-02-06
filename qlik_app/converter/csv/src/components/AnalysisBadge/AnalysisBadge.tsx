@@ -1,6 +1,6 @@
 import "./AnalysisBadge.css";
 import { useWizard } from "../../context/WizardContext";
-import { FC } from "react";
+import type { FC } from "react";
 
 const AnalysisBadge: FC<{ target: string }> = ({ target }) => {
   const { getLastElapsed } = useWizard();

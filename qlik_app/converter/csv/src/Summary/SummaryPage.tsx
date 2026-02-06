@@ -14,9 +14,6 @@ import TableContainer from "@mui/material/TableContainer";
 import TableHead from "@mui/material/TableHead";
 import TableRow from "@mui/material/TableRow";
 import TableSortLabel from "@mui/material/TableSortLabel";
-import TablePagination from "@mui/material/TablePagination";
-import TextField from "@mui/material/TextField";
-import Box from "@mui/material/Box";
 
 type TableInfo = string | { name: string; [key: string]: any };
 type Row = Record<string, any>;

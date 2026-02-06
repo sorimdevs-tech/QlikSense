@@ -1,6 +1,6 @@
 
 import "./AppsPage.css";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { fetchApps, fetchTables } from "../api/qlikApi";
 import { useNavigate } from "react-router-dom";
 import { useWizard } from "../context/WizardContext";
@@ -21,7 +21,7 @@ export default function AppsPage() {
   
 
   const nav = useNavigate();
-  const { stopTimer, startTimer, lastElapsed, getLastElapsed } = useWizard();
+  const { stopTimer, startTimer, getLastElapsed } = useWizard();
   useEffect(() => {
     // 🔑 Get tenant URL saved during login
     const tenantUrl = localStorage.getItem("tenant_url");

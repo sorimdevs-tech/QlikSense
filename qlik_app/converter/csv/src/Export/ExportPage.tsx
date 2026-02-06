@@ -7,7 +7,7 @@ export default function ExportPage() {
   const { state } = useLocation() as any;
   const navigate = useNavigate();
 
-  const { startTimer, stopTimer, getLastElapsed } = useWizard();
+  const { startTimer, getLastElapsed } = useWizard();
   const lastElapsedForPage = getLastElapsed?.("/summary");
 
   // Prefer friendly appName; fallback to appId or session storage
@@ -27,7 +27,7 @@ export default function ExportPage() {
   const appName = appNameRaw;
 
   const [showPowerBIOptions, setShowPowerBIOptions] = useState(false);
-  const [options, setOptions] = useState({ csv: true, dax: false, json: false });
+  const [options, setOptions] = useState<{ csv: boolean; dax: boolean }>({ csv: true, dax: false });
   const [selectAll, setSelectAll] = useState(false);
 
   if (!selectedTable) {

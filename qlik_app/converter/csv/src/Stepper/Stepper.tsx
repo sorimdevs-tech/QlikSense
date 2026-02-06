@@ -30,7 +30,6 @@ export default function Stepper() {
   };
 
   const activeStep = getActive();
-  const { lastElapsed } = useWizard();
 
   // 🔥 MAIN LOGIC HERE
   const handleNavigate = (path: string) => {
