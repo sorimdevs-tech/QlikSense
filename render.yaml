@@ -6,6 +6,7 @@ services:
     region: oregon
     branch: main
     repo: https://github.com/sorimdevs-tech/qlikscence.git
+    rootDirectory: /
     buildCommand: pip install -r qlik_app/qlik/qlik-fastapi-backend/requirements.txt
     startCommand: uvicorn qlik_app.qlik.qlik-fastapi-backend.main:app --host 0.0.0.0 --port $PORT
     envVars:
@@ -17,6 +18,10 @@ services:
         fromGroup: qlik-secrets
       - key: API_KEY
         fromGroup: qlik-secrets
+      - key: QLIK_TENANT_URL
+        fromGroup: qlik-secrets
+      - key: QLIK_API_BASE_URL
+        fromGroup: qlik-secrets
 
   # Frontend Static Site
   - name: qlik-frontend
@@ -25,6 +30,7 @@ services:
     region: oregon
     branch: main
     repo: https://github.com/sorimdevs-tech/qlikscence.git
+    rootDirectory: /
     buildCommand: cd qlik_app/converter/csv && npm install && npm run build
     staticPublishPath: qlik_app/converter/csv/dist
     envVars:
