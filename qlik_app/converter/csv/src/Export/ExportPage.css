@@ -1,0 +1,172 @@
+.export-wrap {
+  padding: 24px;
+  font-family: "Inter", "Segoe UI", sans-serif;
+}
+
+.export-wrap h2 {
+  margin-bottom: 18px;
+}
+
+/* INFO BOXES */
+.info-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.info-box {
+  background: #fff;
+  border-radius: 10px;
+  padding: 14px 16px;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.06);
+}
+
+.info-box .label {
+  font-size: 12px;
+  color: #777;
+}
+
+.info-box .value {
+  display: block;
+  margin-top: 4px;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+/* EXPORT OPTIONS */
+.export-options,
+.powerbi-options {
+  display: flex;
+  gap: 16px;
+  margin-top: 16px;
+}
+
+.export-box {
+  padding: 14px 18px;
+  border-radius: 10px;
+  background: #f5f7fa;
+  cursor: pointer;
+  font-weight: 500;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.export-box:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08);
+}
+
+.export-box.powerbi {
+  background: #e3f2fd;
+  color: #0d47a1;
+}
+
+.export-box.sub {
+  background: #ffffff;
+  border: 1px solid #ddd;
+}
+
+.export-box.disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+
+
+
+/* Container that sits above footer */
+.page-actions {
+  position: fixed;
+  bottom: 70px;          /* space ABOVE footer */
+  right: 24px;
+  z-index: 1000;
+}
+
+/* Button styling */
+.continue-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+
+  padding: 12px 20px;
+  font-size: 14px;
+  font-weight: 600;
+
+  border: none;
+  border-radius: 10px;
+
+  background: linear-gradient(135deg, #4f46e5, #6366f1);
+  color: #fff;
+
+  cursor: pointer;
+  box-shadow: 0 8px 20px rgba(79, 70, 229, 0.35);
+
+  transition: all 0.25s ease;
+}
+
+/* Hover effect */
+.continue-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 26px rgba(79, 70, 229, 0.45);
+}
+
+/* Active click */
+.continue-btn:active {
+  transform: translateY(0);
+  box-shadow: 0 6px 14px rgba(79, 70, 229, 0.3);
+}
+
+/* Mobile responsiveness */
+@media (max-width: 768px) {
+  .page-actions {
+    right: 12px;
+    bottom: 80px;
+  }
+
+  .continue-btn {
+    padding: 10px 16px;
+    font-size: 13px;
+  }
+}
+
+
+.timerStyle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  padding: 14px 18px;
+  margin-bottom: 16px;
+
+  /* background: #0f172a; */
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+}
+
+/* Left heading */
+.timerStyle h2 {
+  margin: 0;
+  font-size: 25px;
+  font-weight: 600;
+  font-weight: bold;
+  color: #0b2966;
+}
+
+/* Right timing block */
+.timerStyle .label {
+  font-size: 12px;
+  color: #94a3b8;
+  margin-right: 6px;
+}
+
+.timerStyle .value {
+  font-size: 14px;
+  font-weight: 600;
+  color: #22c55e; /* green highlight */
+}
+
+/* Wrap label + value together */
+.timerStyle span {
+  display: inline-flex;
+  align-items: center;
+}

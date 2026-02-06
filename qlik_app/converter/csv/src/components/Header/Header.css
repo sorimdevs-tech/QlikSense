@@ -34,6 +34,12 @@
   gap: 24px;
 }
 
+.analysis-timer {
+  color: #16a34a;
+  font-weight: 600;
+  margin-left: 12px;
+}
+
 .header-right a {
   color: #7a869a;
   text-decoration: none;

@@ -54,6 +54,12 @@
   }
 }
 
+/* Disabled step visual */
+.step.disabled {
+  opacity: 0.6;
+  pointer-events: none;
+}
+
 .stepper {
   display: flex;
   gap: 40px;

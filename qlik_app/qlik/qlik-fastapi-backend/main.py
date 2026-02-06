@@ -656,6 +656,370 @@ async def vehicle_summary(
         raise HTTPException(status_code=500, detail=str(e))
 
 
+# ==================== SUMMARY GENERATION ENDPOINTS ====================
+from summary_utils import (
+    generate_summary, generate_batch_summary, build_summary_text, 
+    get_data_quality_score, get_data_preview, HuggingFaceHelper,
+    create_data_chat_context
+)
+from pydantic import BaseModel
+
+class TableDataRequest(BaseModel):
+    """Request model for table data summary"""
+    table_name: str
+    data: List[Dict[str, Any]]
+
+class BatchSummaryRequest(BaseModel):
+    """Request model for batch summary"""
+    tables: Dict[str, List[Dict[str, Any]]]
+
+class ChatRequest(BaseModel):
+    """Request model for chat about data"""
+    table_name: str
+    data: List[Dict[str, Any]]
+    question: str
+
+class ChatHistoryRequest(BaseModel):
+    """Request model for chat with history"""
+    table_name: str
+    data: List[Dict[str, Any]]
+    conversation: List[Dict[str, str]]  # [{"role": "user/assistant", "content": "text"}, ...]
+
+
+@app.post("/summary/table")
+async def create_table_summary(request: TableDataRequest):
+    """
+    Generate a summary from table data
+    Accepts JSON data and returns comprehensive metrics and summary
+    
+    Example request:
+    {
+        "table_name": "Sales",
+        "data": [
+            {"product": "A", "amount": 100},
+            {"product": "B", "amount": 200}
+        ]
+    }
+    """
+    try:
+        summary = generate_summary(request.data, request.table_name)
+        
+        if summary.get("success"):
+            # Add data quality score
+            import pandas as pd
+            df = pd.DataFrame(request.data)
+            quality_score = get_data_quality_score(df)
+            summary["data_quality_score"] = quality_score
+            
+            # Add data preview
+            summary["data_preview"] = get_data_preview(request.data, rows=5)
+        
+        return summary
+    
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Failed to generate summary: {str(e)}")
+
+
+@app.post("/summary/batch")
+async def create_batch_summary(request: BatchSummaryRequest):
+    """
+    Generate summaries for multiple tables at once
+    
+    Example request:
+    {
+        "tables": {
+            "Sales": [...],
+            "Products": [...]
+        }
+    }
+    """
+    try:
+        batch_result = generate_batch_summary(request.tables)
+        
+        # Add quality scores for each table
+        import pandas as pd
+        for table_name, summary in batch_result["summaries"].items():
+            if summary.get("success"):
+                df = pd.DataFrame(request.tables[table_name])
+                summary["data_quality_score"] = get_data_quality_score(df)
+        
+        return batch_result
+    
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Failed to generate batch summary: {str(e)}")
+
+
+@app.post("/summary/text")
+async def generate_summary_text(request: TableDataRequest):
+    """
+    Generate a human-readable summary text from table data
+    
+    Returns plain text summary
+    """
+    try:
+        summary_text = build_summary_text(request.data, request.table_name)
+        
+        return {
+            "success": True,
+            "table_name": request.table_name,
+            "summary": summary_text
+        }
+    
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Failed to generate summary text: {str(e)}")
+
+
+@app.post("/summary/quality")
+async def check_data_quality(request: TableDataRequest):
+    """
+    Check data quality metrics for a table
+    
+    Returns quality score and missing value analysis
+    """
+    try:
+        import pandas as pd
+        
+        df = pd.DataFrame(request.data)
+        quality_score = get_data_quality_score(df)
+        
+        # Calculate missing values per column
+        missing_info = {
+            col: {
+                "count": int(df[col].isna().sum()),
+                "percentage": round((df[col].isna().sum() / len(df)) * 100, 2)
+            }
+            for col in df.columns
+        }
+        
+        return {
+            "success": True,
+            "table_name": request.table_name,
+            "total_rows": len(df),
+            "total_columns": len(df.columns),
+            "quality_score": quality_score,
+            "missing_values": missing_info
+        }
+    
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Failed to check data quality: {str(e)}")
+
+
+# ==================== VEHICLE SUMMARY ENDPOINT ====================
+
+@app.get("/vehicle-summary")
+async def get_vehicle_summary(app_id: str, table_name: str):
+    """
+    Get summary data for a specific table
+    Used for pie chart visualization in frontend
+    
+    Returns: { summary: { metrics... } }
+    """
+    try:
+        from summary_utils import generate_summary
+        
+        # Get all table data
+        qlik = QlikClient()
+        table_data = qlik.get_table_data(app_id, table_name)
+        
+        if not table_data:
+            return {
+                "success": False,
+                "summary": {},
+                "error": "No data found"
+            }
+        
+        # Generate summary using utility function
+        summary = generate_summary(table_data, table_name)
+        
+        return {
+            "success": True,
+            "summary": summary,
+            "table_name": table_name
+        }
+    
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=400, detail=f"Failed to get summary: {str(e)}")
+
+
+# ==================== HUGGING FACE CHAT ENDPOINTS ====================
+
+@app.post("/chat/analyze")
+async def chat_analyze_data(request: ChatRequest):
+    """
+    Chat with AI about your table data using Hugging Face
+    Ask questions about metrics, patterns, and insights
+    
+    Example request:
+    {
+        "table_name": "Sales Data",
+        "data": [...],
+        "question": "What is the total sales amount?"
+    }
+    """
+    try:
+        # Generate summary first for context
+        summary = generate_summary(request.data, request.table_name)
+        
+        if not summary.get("success"):
+            raise HTTPException(status_code=400, detail="Failed to process data")
+        
+        # Get metrics for context
+        metrics = summary.get("metrics", {})
+        
+        # Generate response using Hugging Face
+        response = HuggingFaceHelper.chat_about_data(request.question, metrics)
+        
+        return {
+            "success": True,
+            "table_name": request.table_name,
+            "question": request.question,
+            "response": response,
+            "metrics_context": metrics
+        }
+    
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Chat analysis failed: {str(e)}")
+
+
+@app.post("/chat/summary-hf")
+async def generate_hf_summary(request: TableDataRequest):
+    """
+    Generate an AI-powered summary using Hugging Face
+    Provides more intelligent summaries than rule-based approach
+    
+    Example request:
+    {
+        "table_name": "Sales Data",
+        "data": [...]
+    }
+    """
+    try:
+        import pandas as pd
+        
+        # Process data
+        df = pd.DataFrame(request.data)
+        summary_data = generate_summary(request.data, request.table_name)
+        
+        if not summary_data.get("success"):
+            raise HTTPException(status_code=400, detail="Failed to process data")
+        
+        # Build fact text for Hugging Face
+        metrics = summary_data.get("metrics", {})
+        fact_text = "Dataset Analysis:\n"
+        fact_text += f"Total Records: {metrics.get('Total Records', 0)}\n"
+        fact_text += f"Total Value: {metrics.get('Total Value', 0)}\n"
+        fact_text += f"Average Value: {metrics.get('Average Value', 0)}\n"
+        fact_text += f"Min Value: {metrics.get('Min Value', 0)}\n"
+        fact_text += f"Max Value: {metrics.get('Max Value', 0)}\n"
+        
+        if 'Top Categories' in metrics:
+            fact_text += "Top Categories: "
+            top_cats = metrics['Top Categories']
+            if isinstance(top_cats, dict):
+                fact_text += ", ".join([f"{k}: {v}" for k, v in list(top_cats.items())[:3]])
+            fact_text += "\n"
+        
+        # Generate summary with Hugging Face
+        hf_summary = HuggingFaceHelper.generate_hf_summary(fact_text)
+        
+        return {
+            "success": True,
+            "table_name": request.table_name,
+            "summary": hf_summary,
+            "metrics": metrics,
+            "quality_score": get_data_quality_score(df)
+        }
+    
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"HF summary generation failed: {str(e)}")
+
+
+@app.post("/chat/multi-turn")
+async def multi_turn_chat(request: ChatHistoryRequest):
+    """
+    Multi-turn conversation about table data
+    Maintains conversation history and context
+    
+    Example request:
+    {
+        "table_name": "Sales Data",
+        "data": [...],
+        "conversation": [
+            {"role": "user", "content": "What's the average sales?"},
+            {"role": "assistant", "content": "The average is 1500."},
+            {"role": "user", "content": "What about the highest?"}
+        ]
+    }
+    """
+    try:
+        # Generate summary for context
+        summary = generate_summary(request.data, request.table_name)
+        
+        if not summary.get("success"):
+            raise HTTPException(status_code=400, detail="Failed to process data")
+        
+        metrics = summary.get("metrics", {})
+        
+        # Get the last user message
+        last_message = None
+        for msg in reversed(request.conversation):
+            if msg.get("role") == "user":
+                last_message = msg.get("content")
+                break
+        
+        if not last_message:
+            raise HTTPException(status_code=400, detail="No user message found in conversation")
+        
+        # Generate response
+        response = HuggingFaceHelper.chat_about_data(last_message, metrics)
+        
+        # Return conversation with new response
+        updated_conversation = request.conversation + [
+            {"role": "assistant", "content": response}
+        ]
+        
+        return {
+            "success": True,
+            "table_name": request.table_name,
+            "conversation": updated_conversation,
+            "last_response": response,
+            "metrics_context": metrics
+        }
+    
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Multi-turn chat failed: {str(e)}")
+
+
+@app.get("/chat/help")
+async def chat_help():
+    """
+    Get help on what you can ask the chat system
+    """
+    return {
+        "success": True,
+        "endpoints": {
+            "/chat/analyze": "Ask a single question about your data",
+            "/chat/summary-hf": "Generate AI-powered summary using Hugging Face",
+            "/chat/multi-turn": "Multi-turn conversation with context"
+        },
+        "example_questions": [
+            "What is the total sales amount?",
+            "What's the average value in this dataset?",
+            "Which category has the highest value?",
+            "What are the key insights from this data?",
+            "Tell me about the data distribution",
+            "Are there any missing values?",
+            "What's the relationship between categories?"
+        ],
+        "tips": [
+            "Provide your table data along with your question",
+            "The system maintains conversation history for context",
+            "Questions are answered based on the metrics of your data",
+            "You can ask follow-up questions in multi-turn conversations"
+        ]
+    }
 
 
     

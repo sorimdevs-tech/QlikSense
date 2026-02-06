@@ -1,19 +1,34 @@
-
-
+ 
 import "./ConnectPage.css";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { validateLogin } from "../../pages/LoginPage/authApi";
-
-
+import { useWizard } from "../../context/WizardContext";
+ 
 export default function ConnectPage() {
   const [url, setUrl] = useState("");
   const [connectAsUser, setConnectAsUser] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-
+ 
   const navigate = useNavigate();
-
+ 
+  // ✅ Restore URL + checkbox ONLY for current browser session
+  useEffect(() => {
+    const savedUrl = sessionStorage.getItem("tenant_url");
+    const savedConnectAsUser = sessionStorage.getItem("connect_as_user");
+ 
+    if (savedUrl) {
+      setUrl(savedUrl);
+    }
+ 
+    if (savedConnectAsUser === "true") {
+      setConnectAsUser(true);
+    }
+ 
+    setLoading(false);
+  }, []);
+ 
   const validateUrl = (input: string) => {
     try {
       const parsed = new URL(input);
@@ -22,6 +37,8 @@ export default function ConnectPage() {
       return false;
     }
   };
+ 
+const { startTimer } = useWizard();
 
   const handleConnect = async () => {
     if (!validateUrl(url)) {
@@ -47,7 +64,14 @@ export default function ConnectPage() {
         "qlikCloud000"
       );
 
-      localStorage.setItem("tenant_url", url);
+      // ✅ Save ONLY for this browser session
+      sessionStorage.setItem("tenant_url", url);
+      sessionStorage.setItem("connect_as_user", "true");
+      sessionStorage.setItem("connected", "true");
+
+      // Start navigation timer → Apps page
+      startTimer?.("/apps");
+
       navigate("/apps");
     } catch (err: any) {
       setError(
@@ -58,22 +82,14 @@ export default function ConnectPage() {
       setLoading(false);
     }
   };
-
+ 
   const isValidUrl = validateUrl(url);
-
+ 
   return (
     <div className="connect-wrapper">
       <div className="connect-card">
-        {/* <div className="card-header">
-          <div className="icon">
-            <img className="qlikimg" src={qlikImg} alt="Qlik Icon" />
-          </div>
-          <div>
-            <h2>Connect to Qlik Sense</h2>
-          </div>
-        </div> */}
-
         <label htmlFor="qlik-url">Enter your QlikSense Cloud URL</label>
+ 
         <input
           id="qlik-url"
           type="text"
@@ -86,14 +102,14 @@ export default function ConnectPage() {
           className={url && !isValidUrl ? "invalid" : ""}
           disabled={loading}
         />
-
+ 
         {url && !isValidUrl && (
           <p className="error">
             ⚠️ Please enter a valid Qlik Sense Cloud URL ending with
             .qlikcloud.com
           </p>
         )}
-
+ 
         <label className="checkbox">
           <input
             type="checkbox"
@@ -101,12 +117,18 @@ export default function ConnectPage() {
             onChange={(e) => {
               setConnectAsUser(e.target.checked);
               setError("");
+ 
+              // 🔁 Keep checkbox state in session
+              sessionStorage.setItem(
+                "connect_as_user",
+                e.target.checked ? "true" : "false"
+              );
             }}
             disabled={loading}
           />
           <span>Connect as test User</span>
         </label>
-
+ 
         {error && (
           <div className="error">
             <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
@@ -115,7 +137,7 @@ export default function ConnectPage() {
             </div>
           </div>
         )}
-
+ 
         <div className="actions">
           <button
             onClick={handleConnect}
@@ -125,10 +147,11 @@ export default function ConnectPage() {
               cursor: isValidUrl ? "pointer" : "not-allowed",
             }}
           >
-            {loading ? "Connecting..." : "Continue"}
+            {loading ? "Connecting..." : "Connect"}
           </button>
         </div>
       </div>
     </div>
   );
 }
+ 

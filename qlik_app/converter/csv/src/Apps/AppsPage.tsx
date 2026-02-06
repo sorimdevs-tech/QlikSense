@@ -1,9 +1,9 @@
 
 import "./AppsPage.css";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { fetchApps, fetchTables } from "../api/qlikApi";
 import { useNavigate } from "react-router-dom";
-
+import { useWizard } from "../context/WizardContext";
 interface App {
   id: string;
   name: string;
@@ -16,8 +16,12 @@ export default function AppsPage() {
   const [loading, setLoading] = useState(true);
   const [favourites, setFavourites] = useState<string[]>([]);
 
-  const nav = useNavigate();
+  const [query, setQuery] = useState("");
+  const [sortNewestFirst, setSortNewestFirst] = useState(true);
+  
 
+  const nav = useNavigate();
+  const { stopTimer, startTimer, lastElapsed, getLastElapsed } = useWizard();
   useEffect(() => {
     // 🔑 Get tenant URL saved during login
     const tenantUrl = localStorage.getItem("tenant_url");
@@ -28,13 +32,18 @@ export default function AppsPage() {
       return;
     }
 
+    // ensure we have a running timer for /apps when arriving directly
+    if (sessionStorage.getItem("lastTimerTarget") !== "/apps") {
+      startTimer?.("/apps");
+    }
+
     fetchApps(tenantUrl)
       .then(async (appList) => {
-        setApps(appList);
+        setApps(appList || []);
 
         const counts: Record<string, number> = {};
 
-        for (const app of appList) {
+        for (const app of appList || []) {
           try {
             const tables = await fetchTables(app.id);
             counts[app.id] = tables.length;
@@ -48,8 +57,16 @@ export default function AppsPage() {
       .catch(() => {
         alert("Backend not connected");
       })
-      .finally(() => setLoading(false));
-  }, [nav]);
+      .finally(() => {
+        setLoading(false);
+        // Stop timer started previously (e.g., from Connect)
+        const elapsed = stopTimer?.("/apps");
+        if (elapsed) {
+          // keep for UI; lastElapsed is stored in context
+          console.debug("Apps load time:", elapsed);
+        }
+      });
+  }, [nav, stopTimer]);
 
   const toggleFav = (id: string) => {
     setFavourites((prev) =>
@@ -59,8 +76,15 @@ export default function AppsPage() {
     );
   };
 
-  const openSummary = (appId: string) => {
-    nav("/summary", { state: { appId } });
+  const openSummary = (appId: string, appName?: string) => {
+    // set selection flag so Stepper and validation know an app was chosen
+    sessionStorage.setItem("appSelected", appId);
+    sessionStorage.setItem("appName", appName || appId);
+
+    // start timing for Summary loading
+    startTimer?.("/summary");
+
+    nav("/summary", { state: { appId, appName } });
   };
 
   if (loading) {
@@ -92,59 +116,108 @@ export default function AppsPage() {
         </div>
 
         <div className="qlik-header-right">
-          View all
+          <div className="tools">
+            <input
+              type="search"
+              placeholder="Search apps..."
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              className="apps-search"
+            />
+
+            <button
+              className="sort-btn"
+              onClick={() => setSortNewestFirst((s) => !s)}
+              title={sortNewestFirst ? "Sorting: newest first" : "Sorting: name"}
+            >
+              {sortNewestFirst ? "Newest" : "A→Z"}
+            </button>
+
+            {/* Page-specific AnalysisTime next to title area */}
+            <div className="timer-badge">
+              {/* use per-target saved time */}
+              {getLastElapsed?.("/apps") ? (
+                <span>AnalysisTime - {getLastElapsed!("/apps")}</span>
+              ) : (
+                <span>Ready</span>
+              )}
+            </div>
+          </div>
         </div>
       </div>
 
       {/* APP CARDS */}
       <div className="card-container">
-        {apps.map((app) => (
-          <div
-            key={app.id}
-            className="app-card"
-            onClick={() => openSummary(app.id)}
-          >
-            {/* IMAGE */}
-            <div className="card-center">
-              <img
-                src="/qlik-chart.png"
-                className="qlik-img"
-                alt="qlik"
-              />
-            </div>
+        {(
+          apps
+            .filter((a) => a.name.toLowerCase().includes(query.toLowerCase()))
+            .sort((a, b) => {
+              if (sortNewestFirst) {
+                const da = a.lastModifiedDate ? new Date(a.lastModifiedDate).getTime() : 0;
+                const db = b.lastModifiedDate ? new Date(b.lastModifiedDate).getTime() : 0;
+                return db - da;
+              }
 
-            {/* FOOTER */}
-            <div className="card-footer">
-  {/* LEFT SIDE */}
-  <div className="footer-left">
-    <span className="app-label">{app.name}</span>
+              return a.name.localeCompare(b.name);
+            })
+            .map((app) => {
+              const count = tableCount[app.id] ?? 0;
+              const isDisabled = count === 0;
+              const handleClick = () => {
+                if (!isDisabled) openSummary(app.id, app.name);
+              };
+              return (
+                <div
+                  key={app.id}
+                  className={`app-card ${isDisabled ? "disabled" : ""}`}
+                  onClick={handleClick}
+                  role="button"
+                  aria-disabled={isDisabled}
+                  title={isDisabled ? "No tables available" : "Open summary"}
+                >
+                  {/* IMAGE */}
+                  <div className="card-center">
+                    <img
+                      src="/qlik-chart.png"
+                      className="qlik-img"
+                      alt="qlik"
+                    />
+                  </div>
 
-    <span className="last-modified">
-      {getRelativeTime(app.lastModifiedDate)}
-    </span>
-  </div>
+                  {/* FOOTER */}
+                  <div className="card-footer">
+                    {/* LEFT SIDE */}
+                    <div className="footer-left">
+                      <span className="app-label">{app.name}</span>
 
-  {/* RIGHT SIDE */}
-  <div className="right-actions">
-    <span className="badge">
-      {tableCount[app.id] ?? 0}
-    </span>
+                      <span className="last-modified">
+                        {getRelativeTime(app.lastModifiedDate)}
+                      </span>
+                    </div>
 
-    <span
-      className="fav-icon"
-      onClick={(e) => {
-        e.stopPropagation();
-        toggleFav(app.id);
-      }}
-    >
-      {favourites.includes(app.id) ? "★" : "☆"}
-    </span>
+                    {/* RIGHT SIDE */}
+                    <div className="right-actions">
+                      <span className="badge">
+                        {count}
+                      </span>
 
-    <span className="dot-menu">⋯</span>
-  </div>
-</div>
-          </div>
-        ))}
+                      <span
+                        className="fav-icon"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          toggleFav(app.id);
+                        }}
+                      >
+                        {favourites.includes(app.id) ? "★" : "☆"}
+                      </span>
+
+                      <span className="dot-menu">⋯</span>
+                    </div>
+                  </div>
+                </div>
+              );
+            })
+        )}
       </div>
     </div>
   );
