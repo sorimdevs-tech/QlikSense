@@ -8,6 +8,7 @@ from login_validation import router as login_router
 from qlik_client import QlikClient
 
 qlik_client = QlikClient()
+app = FastAPI()
 
 # Try to import script parser, but make it optional
 try:
