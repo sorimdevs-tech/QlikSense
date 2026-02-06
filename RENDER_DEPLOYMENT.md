@@ -1,107 +1,50 @@
-# Deploying to Render
+# Render Deployment Guide
 
-This guide explains how to deploy the Qlik Sense Accelerator to Render.com.
+## Quick Deploy (Using Blueprint)
 
-## Prerequisites
+1. Go to https://dashboard.render.com/blueprints
+2. Click "New Blueprint"
+3. Connect: `https://github.com/sorimdevs-tech/qlikscence`
+4. Review configuration and click "Create Blueprint"
 
-1. **GitHub Account** with the repository pushed
-2. **Render.com Account** (free tier works)
-3. **Qlik Cloud Credentials** (Client ID and Client Secret)
+## Manual Deployment
 
-## Deployment Steps
+### Backend Service (qlik-api)
 
-### Option 1: Using Render Blueprint (Recommended)
+| Field | Value |
+|-------|-------|
+| **Name** | qlik-api |
+| **Root Directory** | `/` |
+| **Build Command** | `pip install -r qlik_app/qlik/qlik-fastapi-backend/requirements.txt` |
+| **Start Command** | `uvicorn qlik_app.qlik.qlik-fastapi-backend.main:app --host 0.0.0.0 --port $PORT` |
 
-1. Go to [Render Dashboard](https://dashboard.render.com)
-2. Click "New +" and select "Blueprint"
-3. Connect your GitHub repository
-4. Render should detect the `render.yaml` file
-5. Review the configuration and click "Apply"
-6. Add your environment variables:
-   - `QLIK_CLIENT_ID`: Your Qlik Cloud client ID
-   - `QLIK_CLIENT_SECRET`: Your Qlik Cloud client secret
-7. Wait for deployment to complete
+**Environment Variables:**
+| Key | Value |
+|-----|-------|
+| PYTHON_VERSION | 3.11 |
+| QLIK_TENANT_URL | https://c8vlzp3sx6akvnh.in.qlikcloud.com |
+| QLIK_API_BASE_URL | https://c8vlzp3sx6akvnh.in.qlikcloud.com/api/v1 |
+| QLIK_CLIENT_ID | (from Qlik Cloud Console) |
+| QLIK_CLIENT_SECRET | (from Qlik Cloud Console) |
+| API_KEY | (your custom API key) |
 
-### Option 2: Manual Deployment
+### Frontend Service (qlik-frontend)
 
-#### 1. Deploy Backend (Web Service)
+| Field | Value |
+|-------|-------|
+| **Name** | qlik-frontend |
+| **Root Directory** | `/` |
+| **Build Command** | `cd qlik_app/converter/csv && npm install && npm run build` |
+| **Publish Directory** | `qlik_app/converter/csv/dist` |
 
-1. Go to [Render Dashboard](https://dashboard.render.com)
-2. Click "New +" and select "Web Service"
-3. Connect your GitHub repository
-4. Configure:
-   - **Name**: `qlik-api`
-   - **Root Directory**: `qlik_app/qlik/qlik-fastapi-backend`
-   - **Build Command**: `pip install -r requirements.txt`
-   - **Start Command**: `uvicorn main:app --host 0.0.0.0 --port $PORT`
-   - **Plan**: Free
-5. Add Environment Variables:
-   - `QLIK_CLIENT_ID`: Your Qlik Cloud client ID
-   - `QLIK_CLIENT_SECRET`: Your Qlik Cloud client secret
-   - `PYTHON_VERSION`: `3.11`
-6. Click "Create Web Service"
-
-#### 2. Deploy Frontend (Static Site)
-
-1. Go to [Render Dashboard](https://dashboard.render.com)
-2. Click "New +" and select "Static Site"
-3. Connect your GitHub repository
-4. Configure:
-   - **Name**: `qlik-frontend`
-   - **Root Directory**: `qlik_app/converter/csv`
-   - **Build Command**: `npm install && npm run build`
-   - **Publish Directory**: `dist`
-5. Add Environment Variables:
-   - `VITE_API_URL`: Your backend URL (e.g., `https://qlik-api.onrender.com`)
-6. Click "Create Static Site"
+**Environment Variables:**
+| Key | Value |
+|-----|-------|
+| VITE_API_URL | (auto-filled from qlik-api service) |
 
 ## Getting Qlik Cloud Credentials
 
-1. Log in to your Qlik Cloud tenant
-2. Go to https://your-tenant.qlikcloud.com/console/api-keys
-3. Click "Create new API key"
-4. Copy the **Client ID** and **Client Secret**
-5. ⚠️ **Important**: Save the client secret immediately - it won't be shown again!
-
-## Testing the Deployment
-
-1. Backend API: `https://your-backend.onrender.com`
-   - Visit `https://your-backend.onrender.com/` to see API info
-   - Visit `https://your-backend.onrender.com/health` for health check
-
-2. Frontend: `https://your-frontend.onrender.com`
-   - Should load the React application
-
-## Troubleshooting
-
-### CORS Errors
-- Make sure CORS is configured to allow your frontend domain
-- Update `allow_origins` in `main.py` if needed
-
-### Large Files Error
-- If you see "File exceeds 100MB" error:
-- Remove large files from the repository
-- Use `.gitignore` for build artifacts
-- Consider using a requirements.txt instead of committing venv
-
-### Build Fails
-- Check that Python version is set to 3.11
-- Verify all dependencies are in requirements.txt
-- Check Render build logs for specific errors
-
-## Environment Variables Reference
-
-| Variable | Required | Description |
-|----------|----------|-------------|
-| `QLIK_CLIENT_ID` | Yes | Qlik Cloud API Client ID |
-| `QLIK_CLIENT_SECRET` | Yes | Qlik Cloud API Client Secret |
-| `PYTHON_VERSION` | No | Python version (default: 3.11) |
-| `VITE_API_URL` | Frontend only | Backend API URL |
-
-## Free Tier Limitations
-
-- Services sleep after 15 minutes of inactivity
-- Build time limits apply
-- Limited compute resources
-
-For production, consider upgrading to a paid plan.
+1. Go to https://c8vlzp3sx6akvnh.in.qlikcloud.com/console/api-keys
+2. Create new API key
+3. Copy Client ID and Client Secret
+4. ⚠️ Save Client Secret - it won't be shown again!
