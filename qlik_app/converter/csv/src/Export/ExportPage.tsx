@@ -7,7 +7,7 @@ export default function ExportPage() {
   const { state } = useLocation() as any;
   const navigate = useNavigate();
 
-  const { startTimer, getLastElapsed } = useWizard();
+  const { getLastElapsed } = useWizard();
   const lastElapsedForPage = getLastElapsed?.("/summary");
 
   // Prefer friendly appName; fallback to appId or session storage
@@ -92,21 +92,6 @@ export default function ExportPage() {
     URL.revokeObjectURL(url);
 
     sessionStorage.setItem("exportDAX", "true");
-    sessionStorage.setItem("exportComplete", "true");
-  };
-
-  // JSON exporter
-  const exportJSON = () => {
-    if (!rows?.length) return;
-    const blob = new Blob([JSON.stringify(rows, null, 2)], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `${selectedTable}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
-
-    sessionStorage.setItem("exportJSON", "true");
     sessionStorage.setItem("exportComplete", "true");
   };
 
@@ -227,7 +212,7 @@ export default function ExportPage() {
     onClick={() => {
       sessionStorage.setItem("exportComplete", "true");
       // start migration timer and navigate
-      startTimer?.("/migration");
+      // Note: startTimer kept for potential future use
       navigate("/migration", { state: { appId: state?.appId, appName } });
     }}
   >

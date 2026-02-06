@@ -2,7 +2,7 @@
 import "./ConnectPage.css";
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { validateLogin } from "../../pages/LoginPage/authApi";
+import { validateLogin } from "../../api/qlikApi";
 import { useWizard } from "../../context/WizardContext";
  
 export default function ConnectPage() {

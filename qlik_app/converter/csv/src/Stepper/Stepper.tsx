@@ -1,6 +1,5 @@
 import "./Stepper.css";
 import { useNavigate, useLocation } from "react-router-dom";
-import { useWizard } from "../context/WizardContext";
 
 const steps = [
   { id: 1, label: "Connect", sub: "Connect to Qlik Cloud", icon: "🔗", path: "/" },

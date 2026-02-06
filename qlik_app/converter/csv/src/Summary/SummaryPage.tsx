@@ -439,7 +439,6 @@ import React from "react";
 interface SummaryReportProps {
   summary: any;
   rows: Row[];
-  onDownload?: () => void;
 }
 
 // Pie Chart Component
@@ -548,7 +547,6 @@ const PieChart: React.FC<{ data: Record<string, number>; title: string }> = ({ d
 export const SummaryReport: React.FC<SummaryReportProps> = ({
   summary,
   rows,
-  onDownload,
 }) => {
   if (!summary && rows.length === 0) return null;
 
