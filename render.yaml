@@ -12,6 +12,8 @@ services:
     envVars:
       - key: PYTHON_VERSION
         value: "3.11"
+      - key: BUILD_COMMAND
+        value: "pip install --upgrade pip && pip install pandas==2.2.0 --no-cache-dir && pip install -r qlik_app/qlik/qlik-fastapi-backend/requirements.txt --no-cache-dir"
       - key: QLIK_CLIENT_ID
         fromGroup: qlik-secrets
       - key: QLIK_CLIENT_SECRET

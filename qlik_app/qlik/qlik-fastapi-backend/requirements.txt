@@ -6,9 +6,7 @@ pydantic==2.5.0
 python-multipart==0.0.6
 websocket-client==1.6.1
 PyJWT==2.8.0
-pandas==2.1.4  # For data manipulation
-matplotlib
-torch
-transformers
-sentencepiece
+pandas==2.2.3
+numpy>=1.26.0
 sqlalchemy
+httpx
