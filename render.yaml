@@ -43,3 +43,7 @@ envVarGroups:
         sync: false
       - key: API_KEY
         sync: false
+      - key: QLIK_TENANT_URL
+        sync: false
+      - key: QLIK_API_BASE_URL
+        sync: false
