@@ -2,8 +2,7 @@
 
 import axios from "axios";
  
-const BASE_URL = "http://localhost:8000";
-// const BASE_URL = "https://c8vlzp3sx6akvnh.in.qlikcloud.com/";
+const BASE_URL = "https://qliksense-1.onrender.com";
  
 // Convert FastAPI response → simple format
 // ✅ UPDATE HERE
@@ -25,6 +24,22 @@ export const testBrowserLogin = async (tenantUrl: string) => {
   return res.data;
 };
 
+
+export const validateLogin = async (
+  tenantUrl: string,
+  connectAsUser: boolean,
+  username: string,
+  password: string
+) => {
+  const res = await axios.post(`${BASE_URL}/validate-login`, {
+    tenant_url: tenantUrl,
+    connect_as_user: connectAsUser,
+    username,
+    password,
+  });
+
+  return res.data;
+};
 
 
 
