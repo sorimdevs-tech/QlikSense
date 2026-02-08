@@ -3,7 +3,6 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { validateLogin } from "../../api/qlikApi";
 import { useWizard } from "../../context/WizardContext";
-import qlikaiLogo from "../../assets/qlikai.png";
 
 export default function ConnectPage() {
   const [url, setUrl] = useState("");
