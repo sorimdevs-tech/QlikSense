@@ -39,19 +39,33 @@
 }
 
 .logo-image {
-  width: 56px;
-  height: 56px;
+  width: 64px;
+  height: 64px;
   object-fit: contain;
 }
 
-.logo-title {
+.qlik-title {
   margin: 0;
   font-size: 32px;
   font-weight: 700;
+  color: #1a1a1a;
+  line-height: 1.2;
+}
+
+.qlik-title .AI {
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
+}
+
+.qlik-title .tagline {
+  display: block;
+  font-size: 14px;
+  font-weight: 400;
+  color: #888;
+  margin-top: 4px;
+  letter-spacing: 0.2px;
 }
 
 /* Description */
@@ -259,12 +273,16 @@ input[type="text"].invalid {
   }
 
   .logo-image {
-    width: 72px;
-    height: 72px;
+    width: 80px;
+    height: 80px;
   }
 
-  .logo-title {
+  .qlik-title {
     font-size: 28px;
+  }
+
+  .qlik-title .tagline {
+    font-size: 13px;
   }
 
   .description {

@@ -3,6 +3,7 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { validateLogin } from "../../api/qlikApi";
 import { useWizard } from "../../context/WizardContext";
+import qlikaiLogo from "../../assets/qlikai.png";
 
 export default function ConnectPage() {
   const [url, setUrl] = useState("");
@@ -86,14 +87,17 @@ export default function ConnectPage() {
     <div className="connect-wrapper">
       <div className="connect-card">
         {/* Logo Section */}
-        <div className="logo-section">
+        {/* <div className="logo-section">
           <img
-            src="/qlik-chart.png"
+            src={qlikaiLogo}
             alt="QlikAI Logo"
             className="logo-image"
           />
-          <h1 className="logo-title">QlikAI</h1>
-        </div>
+          <h1 className="qlik-title">
+            Qlik <span className="AI">AI</span>
+            <span className="tagline">– Transform Your QlikSense Data with AI</span>
+          </h1>
+        </div> */}
 
         {/* Description */}
         <p className="description">
