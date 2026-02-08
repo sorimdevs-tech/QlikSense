@@ -8,30 +8,16 @@
   padding: 0 32px;
 }
 
-.header-left {
+.logo-section {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
 }
 
-.logo-icon {
-  font-size: 22px;
-}
-
-.logo-text {
-  font-size: 20px;
-  font-weight: 700;
-  color: #2d3a4b;
-}
-
-.logo-text span {
-  color: #4c6fff;
-}
-
-.header-right {
-  display: flex;
-  align-items: center;
-  gap: 24px;
+.logo-image {
+  height: 40px;
+  width: auto;
+  object-fit: contain;
 }
 
 .analysis-timer {
