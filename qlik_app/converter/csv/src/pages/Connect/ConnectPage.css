@@ -1,84 +1,9 @@
-/* .connect-wrapper {
-  padding: 40px;
-}
-
-.connect-card {
-  max-width: 900px;
-  margin: auto;
-  background: #ffffff;
-  border-radius: 12px;
-  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.06);
-  padding: 32px;
-}
-
-.card-header {
-  display: flex;
-  gap: 16px;
-  margin-bottom: 24px;
-}
-
-.icon {
-  font-size: 28px;
-  background: #f0f3ff;
-  color: #4c6fff;
-  padding: 14px;
-  border-radius: 10px;
-}
-
-h2 {
-  margin: 0;
-}
-
-p {
-  margin: 4px 0 0;
-  color: #7a869a;
-  font-size: 14px;
-}
-
-label {
-  font-size: 14px;
-  font-weight: 500;
-}
-
-input {
-  width: 100%;
-  margin-top: 8px;
-  padding: 12px;
-  border-radius: 8px;
-  border: 1px solid #dce1ea;
-}
-
-.actions {
-  display: flex;
-  justify-content: flex-end;
-  margin-top: 28px;
-}
-
-button {
-  background: #9bb2ff;
-  color: white;
-  border: none;
-  padding: 12px 22px;
-  border-radius: 10px;
-  cursor: pointer;
-} */
-
-
-
-
-
-
-
-
-
 /* ConnectPage.css */
 
 .connect-wrapper {
-  /* min-height: 100vh; */
   display: flex;
   align-items: center;
   justify-content: center;
-  /* background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); */
   padding: 20px;
 }
 
@@ -87,7 +12,7 @@ button {
   border-radius: 24px;
   padding: 48px 40px;
   width: 100%;
-  max-width: 480px;
+  max-width: 520px;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
   animation: fadeIn 0.6s ease-out;
 }
@@ -101,6 +26,44 @@ button {
     opacity: 1;
     transform: translateY(0);
   }
+}
+
+/* Logo Section */
+.logo-section {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 24px;
+  padding-bottom: 24px;
+  border-bottom: 2px solid #f0f0f0;
+}
+
+.logo-image {
+  width: 56px;
+  height: 56px;
+  object-fit: contain;
+}
+
+.logo-title {
+  margin: 0;
+  font-size: 32px;
+  font-weight: 700;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Description */
+.description {
+  color: #555;
+  font-size: 14px;
+  line-height: 1.7;
+  margin: 0 0 32px 0;
+  padding: 20px;
+  background: linear-gradient(135deg, #f8f9ff 0%, #f0f4ff 100%);
+  border-radius: 12px;
+  border-left: 4px solid #667eea;
 }
 
 .card-header {
@@ -161,7 +124,7 @@ input[type="text"] {
   background: #f8f9fa;
 }
 
-input[type="text"]:hover{
+input[type="text"]:hover {
   border: solid 2px #667eea;
   background: white;
   box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.1);
@@ -288,23 +251,43 @@ input[type="text"].invalid {
     padding: 32px 24px;
     margin: 16px;
   }
-  
+
+  .logo-section {
+    flex-direction: column;
+    text-align: center;
+    gap: 12px;
+  }
+
+  .logo-image {
+    width: 72px;
+    height: 72px;
+  }
+
+  .logo-title {
+    font-size: 28px;
+  }
+
+  .description {
+    font-size: 13px;
+    padding: 16px;
+  }
+
   .card-header {
     flex-direction: column;
     text-align: center;
     gap: 16px;
   }
-  
+
   .card-header .icon {
     width: 156px;
     height: 156px;
     font-size: 24px;
   }
-  
+
   .card-header h2 {
     font-size: 24px;
   }
-  
+
   .actions button {
     width: 100%;
     justify-content: center;

@@ -1,34 +1,33 @@
- 
 import "./ConnectPage.css";
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { validateLogin } from "../../api/qlikApi";
 import { useWizard } from "../../context/WizardContext";
- 
+
 export default function ConnectPage() {
   const [url, setUrl] = useState("");
   const [connectAsUser, setConnectAsUser] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
- 
+
   const navigate = useNavigate();
- 
+
   // ✅ Restore URL + checkbox ONLY for current browser session
   useEffect(() => {
     const savedUrl = sessionStorage.getItem("tenant_url");
     const savedConnectAsUser = sessionStorage.getItem("connect_as_user");
- 
+
     if (savedUrl) {
       setUrl(savedUrl);
     }
- 
+
     if (savedConnectAsUser === "true") {
       setConnectAsUser(true);
     }
- 
+
     setLoading(false);
   }, []);
- 
+
   const validateUrl = (input: string) => {
     try {
       const parsed = new URL(input);
@@ -37,8 +36,8 @@ export default function ConnectPage() {
       return false;
     }
   };
- 
-const { startTimer } = useWizard();
+
+  const { startTimer } = useWizard();
 
   const handleConnect = async () => {
     if (!validateUrl(url)) {
@@ -80,14 +79,29 @@ const { startTimer } = useWizard();
       setLoading(false);
     }
   };
- 
+
   const isValidUrl = validateUrl(url);
- 
+
   return (
     <div className="connect-wrapper">
       <div className="connect-card">
+        {/* Logo Section */}
+        <div className="logo-section">
+          <img
+            src="/qlik-chart.png"
+            alt="QlikAI Logo"
+            className="logo-image"
+          />
+          <h1 className="logo-title">QlikAI</h1>
+        </div>
+
+        {/* Description */}
+        <p className="description">
+          QlikAI is an AI-powered analytics acceleration platform designed to transform how enterprises consume, understand, and act on QlikSense data. By leveraging advanced AI/LLM capabilities, QlikAI automatically summarizes complex dashboards, generates contextual insights, and enables seamless export of analytics into downstream platforms such as Power BI—reducing manual effort and accelerating decision-making.
+        </p>
+
         <label htmlFor="qlik-url">Enter your QlikSense Cloud URL</label>
- 
+
         <input
           id="qlik-url"
           type="text"
@@ -100,14 +114,14 @@ const { startTimer } = useWizard();
           className={url && !isValidUrl ? "invalid" : ""}
           disabled={loading}
         />
- 
+
         {url && !isValidUrl && (
           <p className="error">
             ⚠️ Please enter a valid Qlik Sense Cloud URL ending with
             .qlikcloud.com
           </p>
         )}
- 
+
         <label className="checkbox">
           <input
             type="checkbox"
@@ -126,7 +140,7 @@ const { startTimer } = useWizard();
           />
           <span>Connect as test User</span>
         </label>
- 
+
         {error && (
           <div className="error">
             <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
@@ -135,7 +149,7 @@ const { startTimer } = useWizard();
             </div>
           </div>
         )}
- 
+
         <div className="actions">
           <button
             onClick={handleConnect}
@@ -152,4 +166,3 @@ const { startTimer } = useWizard();
     </div>
   );
 }
- 
