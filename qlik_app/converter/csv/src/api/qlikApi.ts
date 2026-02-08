@@ -2,7 +2,7 @@
 
 import axios from "axios";
  
-const BASE_URL = "https://qliksense-1.onrender.com";
+const BASE_URL = "http://127.0.0.1:8005";
  
 // Convert FastAPI response → simple format
 // ✅ UPDATE HERE
@@ -65,8 +65,16 @@ export const fetchTables = async (appId: string, tenantUrl?: string) => {
     params.tenant_url = tenantUrl;
   }
   
-  const res = await axios.get(`${BASE_URL}/applications/${appId}/tables`, { params });
-  return res.data.tables || [];
+  try {
+    const res = await axios.get(`${BASE_URL}/applications/${appId}/tables`, { params });
+    return res.data.tables || [];
+  } catch (error: any) {
+    // Suppress 500 errors - tables may not be available for some apps
+    if (error.response?.status === 500) {
+      return [];
+    }
+    throw error;
+  }
 };
 
  

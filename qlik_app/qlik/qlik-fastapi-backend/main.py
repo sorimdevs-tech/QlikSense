@@ -2,6 +2,12 @@ from fastapi import FastAPI, HTTPException, Depends, Query, Body
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, PlainTextResponse
 from typing import List, Dict, Any, Optional
+from dotenv import load_dotenv
+import os
+
+# Load environment variables from .env file
+load_dotenv(os.path.join(os.path.dirname(__file__), '.env'))
+
 from .qlik_client import QlikClient
 from .qlik_websocket_client import QlikWebSocketClient
 from .login_validation import router as login_router

@@ -23,6 +23,16 @@ class LoginPayload(BaseModel):
     password: str
 
 
+def normalize_tenant_url(url: str) -> str:
+    """Normalize URL by removing trailing slashes and www prefix"""
+    url = url.rstrip("/")
+    # Remove www. prefix if present
+    if url.startswith("https://www."):
+        url = "https://" + url[len("https://www."):]
+    elif url.startswith("http://www."):
+        url = "http://" + url[len("http://www."):]
+    return url
+
 @router.post("/validate-login")
 def validate_login(payload: LoginPayload):
 
@@ -49,11 +59,14 @@ def validate_login(payload: LoginPayload):
             detail="Invalid username or password"
         )
 
-    # 4️⃣ Tenant URL match
-    if payload.tenant_url.rstrip("/") != user["tenant"]:
+    # 4️⃣ Tenant URL match (normalized)
+    input_url = normalize_tenant_url(payload.tenant_url)
+    expected_url = normalize_tenant_url(user["tenant"])
+    
+    if input_url != expected_url:
         raise HTTPException(
             status_code=400,
-            detail="Tenant URL not match"
+            detail=f"Tenant URL mismatch. Expected: {expected_url}"
         )
 
     return {

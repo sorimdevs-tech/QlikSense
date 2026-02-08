@@ -64,14 +64,12 @@ const { startTimer } = useWizard();
         "qlikCloud000"
       );
 
-      // ✅ Save ONLY for this browser session
+      // Save for this browser session
       sessionStorage.setItem("tenant_url", url);
-      sessionStorage.setItem("connect_as_user", "true");
       sessionStorage.setItem("connected", "true");
 
-      // Start navigation timer → Apps page
+      // Navigate to apps page
       startTimer?.("/apps");
-
       navigate("/apps");
     } catch (err: any) {
       setError(
@@ -117,7 +115,7 @@ const { startTimer } = useWizard();
             onChange={(e) => {
               setConnectAsUser(e.target.checked);
               setError("");
- 
+
               // 🔁 Keep checkbox state in session
               sessionStorage.setItem(
                 "connect_as_user",

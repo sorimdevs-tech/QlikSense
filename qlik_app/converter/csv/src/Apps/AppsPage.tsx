@@ -23,8 +23,8 @@ export default function AppsPage() {
   const nav = useNavigate();
   const { stopTimer, startTimer, getLastElapsed } = useWizard();
   useEffect(() => {
-    // 🔑 Get tenant URL saved during login
-    const tenantUrl = localStorage.getItem("tenant_url");
+    // 🔑 Get tenant URL saved during login (use sessionStorage like ConnectPage)
+    const tenantUrl = sessionStorage.getItem("tenant_url");
 
     if (!tenantUrl) {
       alert("Tenant URL missing. Please login again.");
@@ -48,6 +48,7 @@ export default function AppsPage() {
             const tables = await fetchTables(app.id);
             counts[app.id] = tables.length;
           } catch {
+            // Silently fail - app still shows without table count
             counts[app.id] = 0;
           }
         }
