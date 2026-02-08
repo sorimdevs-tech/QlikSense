@@ -2,7 +2,8 @@
 
 import axios from "axios";
  
-const BASE_URL = "http://127.0.0.1:8005";
+// Use environment variable for production (set by Render), fallback to localhost for dev
+const BASE_URL = import.meta.env.VITE_API_URL || "http://127.0.0.1:8005";
  
 // Convert FastAPI response → simple format
 // ✅ UPDATE HERE
