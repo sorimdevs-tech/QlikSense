@@ -12,7 +12,7 @@ export default function Header() {
         />
         <div className="logo-description">
           <p className="logo-text">QlikAI</p>
-          <p className="logo-subtitle">AI-powered analytics acceleration platform</p>
+          <p className="logo-subtitle">QlikAI is an AI-powered analytics acceleration platform designed to transform how enterprises consume, understand, and act on QlikSense data.</p>
         </div>
       </div>
 
