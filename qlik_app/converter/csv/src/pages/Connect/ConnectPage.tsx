@@ -99,9 +99,9 @@ export default function ConnectPage() {
         </div> */}
 
         {/* Description */}
-        <p className="description">
+        {/* <p className="description">
           QlikAI is an AI-powered analytics acceleration platform designed to transform how enterprises consume, understand, and act on QlikSense data. By leveraging advanced AI/LLM capabilities, QlikAI automatically summarizes complex dashboards, generates contextual insights, and enables seamless export of analytics into downstream platforms such as Power BI—reducing manual effort and accelerating decision-making.
-        </p>
+        </p> */}
 
         <label htmlFor="qlik-url">Enter your QlikSense Cloud URL</label>
 
