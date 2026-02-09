@@ -5,16 +5,12 @@ export default function Header() {
   return (
     <header className="header">
       <div className="logo-section">
-          <img
-            src={qlikaiLogo}
-            alt="QlikAI Logo"
-            className="logo-image"
-          />
-          <h1 className="qlik-title">
-            Qlik <span className="AI">AI</span>
-            <span className="tagline">– Transform Your QlikSense Data with AI</span>
-          </h1>
-        </div>
+        <img
+          src={qlikaiLogo}
+          alt="QlikAI Logo"
+          className="logo-image"
+        />
+      </div>
 
       <div className="header-right">
         <a href="#">Docs</a>
