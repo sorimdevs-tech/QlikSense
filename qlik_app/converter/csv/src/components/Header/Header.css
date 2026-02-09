@@ -20,6 +20,30 @@
   object-fit: contain;
 }
 
+.logo-description {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.logo-text {
+  font-family: "Inter", "Segoe UI", sans-serif;
+  font-size: 18px;
+  font-weight: 700;
+  color: #2d3a4b;
+  margin: 0;
+  line-height: 1.2;
+}
+
+.logo-subtitle {
+  font-family: "Inter", "Segoe UI", sans-serif;
+  font-size: 11px;
+  color: #7a869a;
+  margin: 0;
+  line-height: 1.2;
+  font-weight: 400;
+}
+
 .header-right {
   display: flex;
   align-items: center;
@@ -56,6 +80,9 @@
     padding: 0 16px;
   }
   .header-right a {
+    display: none;
+  }
+  .logo-subtitle {
     display: none;
   }
 }

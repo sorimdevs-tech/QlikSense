@@ -10,6 +10,10 @@ export default function Header() {
           alt="QlikAI Logo"
           className="logo-image"
         />
+        <div className="logo-description">
+          <p className="logo-text">QlikAI</p>
+          <p className="logo-subtitle">AI-powered analytics acceleration platform</p>
+        </div>
       </div>
 
       <div className="header-right">
