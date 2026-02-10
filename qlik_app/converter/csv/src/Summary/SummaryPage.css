@@ -465,6 +465,15 @@ PAGE WRAP
   z-index: 2;
 }
 
+/* Highlight table header for clarity */
+.table-wrapper table thead th,
+.table-wrapper table th {
+  background: linear-gradient(90deg, #eef2ff 0%, #e6f0ff 100%);
+  color: #0b2966;
+  font-weight: 700;
+  border-bottom: 1px solid rgba(11,41,102,0.08);
+}
+
 .empty {
   display: flex;
   align-items: center;
@@ -572,6 +581,13 @@ PAGE WRAP
   font-weight: 500;
   transition: background 0.2s ease;
   margin-right: 8px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.export-btn img{
+  width: 25px;
 }
 
 /* .export-btn:hover {
@@ -1124,3 +1140,5 @@ PAGE WRAP
   color: #555;
   text-align: left;
 }
+
+.analysis-badge

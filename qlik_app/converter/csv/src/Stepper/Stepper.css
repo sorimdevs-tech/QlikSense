@@ -1,4 +1,4 @@
-.stepper {
+/* .stepper {
   display: flex;
   justify-content: space-between;
   padding: 30px 40px;
@@ -54,7 +54,7 @@
   }
 }
 
-/* Disabled step visual */
+
 .step.disabled {
   opacity: 0.6;
   pointer-events: none;
@@ -83,7 +83,6 @@
   transition: 0.3s;
 }
 
-/* BLUE WHEN ACTIVE */
 .circle.active {
   background: #2563eb;
   color: white;
@@ -91,4 +90,100 @@
 
 .step-text .title {
   font-weight: bold;
+} */
+
+
+
+
+/* ===== Container ===== */
+.stepper {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 32px;
+  background: #ffffff;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+/* ===== Each step ===== */
+.step {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-width: 180px;
+}
+
+/* ===== Icon circle ===== */
+.circle {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: #f3f4f6;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+/* icon size */
+.circle img {
+  width: 22px;
+  height: 22px;
+  object-fit: contain;
+}
+
+/* ===== Active step ===== */
+.circle.active {
+  background: #208d97; /* blue */
+}
+
+.circle.active img {
+  /* filter: brightness(0) invert(1); */
+}
+
+/* ===== Text block ===== */
+.step-text {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.2;
+}
+
+.step-text .title {
+  font-size: 15px;
+  font-weight: 600;
+  color: #111827;
+}
+
+.step-text .sub {
+  font-size: 12.5px;
+  color: #6b7280;
+  margin-top: 2px;
+}
+
+/* ===== Disabled state ===== */
+.step.disabled {
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+/* ===== Hover (non-disabled only) ===== */
+/* .step:not(.disabled):hover .circle {
+  background: #e5e7eb;
+  transition: background 0.2s ease;
+} */
+
+.step:not(.disabled):hover .title {
+  color: #2563eb;
+}
+
+/* ===== Responsive (optional safety) ===== */
+@media (max-width: 1200px) {
+  .stepper {
+    overflow-x: auto;
+    gap: 24px;
+  }
+
+  .step {
+    min-width: 160px;
+  }
 }

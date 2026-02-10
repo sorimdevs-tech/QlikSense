@@ -126,7 +126,7 @@ input[type="text"] {
   font-size: 16px;
   transition: all 0.3s ease;
   box-sizing: border-box;
-  margin-bottom: 30px;
+  margin-bottom: 10px;
   background: #f8f9fa;
 }
 
@@ -149,11 +149,12 @@ input[type="text"].invalid {
   display: flex;
   align-items: center;
   gap: 12px;
-  margin-bottom: 30px;
+  font-style: italic;
+  /* margin-bottom: 30px;
   padding: 16px 20px;
   background: #f8f9fa;
   border-radius: 12px;
-  border: 2px solid #e1e5e9;
+  border: 2px solid #e1e5e9; */
   transition: all 0.3s ease;
   cursor: pointer;
 }

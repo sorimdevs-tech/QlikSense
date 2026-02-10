@@ -15,13 +15,14 @@ export default function AppsPage() {
   const [tableCount, setTableCount] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
   const [favourites, setFavourites] = useState<string[]>([]);
+  const [pageLoadTime, setPageLoadTime] = useState<string | null>(null);
 
   const [query, setQuery] = useState("");
-  const [sortNewestFirst, setSortNewestFirst] = useState(true);
+  const [sortNewestFirst] = useState(true);
   
 
   const nav = useNavigate();
-  const { stopTimer, startTimer, getLastElapsed } = useWizard();
+  const { stopTimer, startTimer } = useWizard();
   useEffect(() => {
     // 🔑 Get tenant URL saved during login (use sessionStorage like ConnectPage)
     const tenantUrl = sessionStorage.getItem("tenant_url");
@@ -59,13 +60,9 @@ export default function AppsPage() {
         alert("Backend not connected");
       })
       .finally(() => {
-        setLoading(false);
-        // Stop timer started previously (e.g., from Connect)
         const elapsed = stopTimer?.("/apps");
-        if (elapsed) {
-          // keep for UI; lastElapsed is stored in context
-          console.debug("Apps load time:", elapsed);
-        }
+        setPageLoadTime(elapsed);
+        setLoading(false);
       });
   }, [nav, stopTimer]);
 
@@ -126,23 +123,20 @@ export default function AppsPage() {
               className="apps-search"
             />
 
-            <button
+            {/* <buttonz
               className="sort-btn"
               onClick={() => setSortNewestFirst((s) => !s)}
               title={sortNewestFirst ? "Sorting: newest first" : "Sorting: name"}
             >
               {sortNewestFirst ? "Newest" : "A→Z"}
-            </button>
+            </button> */}
 
-            {/* Page-specific AnalysisTime next to title area */}
-            <div className="timer-badge">
-              {/* use per-target saved time */}
-              {getLastElapsed?.("/apps") ? (
-                <span>AnalysisTime - {getLastElapsed!("/apps")}</span>
-              ) : (
-                <span>Ready</span>
-              )}
-            </div>
+            {/* Page loading time */}
+            {pageLoadTime && !loading && (
+              <div className="timer-badge">
+                Analysis Loading Time: {pageLoadTime}
+              </div>
+            )}
           </div>
         </div>
       </div>

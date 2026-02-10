@@ -1,7 +1,7 @@
 
 
 import "./SummaryPage.css";
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useRef } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { fetchTables, fetchTableData, fetchVehicleSummary } from "../api/qlikApi";
 import Csvicon from "../assets/Csvicon.png";
@@ -14,6 +14,7 @@ import TableContainer from "@mui/material/TableContainer";
 import TableHead from "@mui/material/TableHead";
 import TableRow from "@mui/material/TableRow";
 import TableSortLabel from "@mui/material/TableSortLabel";
+import exportImg from "../assets/export2.png";
 
 type TableInfo = string | { name: string; [key: string]: any };
 type Row = Record<string, any>;
@@ -21,6 +22,7 @@ type Row = Record<string, any>;
 export default function SummaryPage() {
   const location = useLocation();
   const navigate = useNavigate();
+  const pageStartTimeRef = useRef<number | null>(null);
   
   const [appId, setAppId] = useState<string>("");
   const [tables, setTables] = useState<TableInfo[]>([]);
@@ -30,6 +32,12 @@ export default function SummaryPage() {
   const [loading, setLoading] = useState(true);
   const [tableLoading, setTableLoading] = useState(false);
   const [summary, setSummary] = useState<any>(null);
+  const [pageLoadTime, setPageLoadTime] = useState<string | null>(null);
+  
+  // Track page load start time
+  useEffect(() => {
+    pageStartTimeRef.current = Date.now();
+  }, []);
   // Data-table controls
   const [tableQuery, setTableQuery] = useState<string>("");
   const [pageSize, setPageSize] = useState<number>(10);
@@ -127,7 +135,7 @@ export default function SummaryPage() {
   }, [location, navigate]);
 
   // 2 → LOAD TABLE LIST
-  const { stopTimer, startTimer, getLastElapsed } = useWizard();
+  const { stopTimer, startTimer } = useWizard();
 
   useEffect(() => {
     if (!appId) return;
@@ -137,21 +145,19 @@ export default function SummaryPage() {
       startTimer?.("/summary");
     }
       
-    fetchTables(appId)
+      fetchTables(appId)
       .then((data) => {
-        // If table objects have `created` or `createdAt`, sort by newest first
+        // Sort table list alphabetically by name (strings or objects)
         const sorted = (data || []).slice().sort((x: any, y: any) => {
-          const xa = typeof x === "string" ? null : x.created || x.createdAt || null;
-          const ya = typeof y === "string" ? null : y.created || y.createdAt || null;
-
-          if (xa && ya) return +new Date(ya) - +new Date(xa);
-          return 0;
+          const nx = typeof x === "string" ? x : x?.name || "";
+          const ny = typeof y === "string" ? y : y?.name || "";
+          return String(nx).localeCompare(String(ny), undefined, { sensitivity: 'base' });
         });
 
         setTables(sorted);
         setFilteredTables(sorted);
-        console.log("All tables fetched:", sorted); // ✅ debug
-        
+        console.log("All tables fetched:", sorted);
+
         // AUTO-LOAD FIRST TABLE
         if (sorted && sorted.length > 0) {
           const firstTableName = typeof sorted[0] === "string" ? sorted[0] : sorted[0]?.name;
@@ -163,14 +169,21 @@ export default function SummaryPage() {
       .catch(() => {})
       .finally(() => {
         setLoading(false);
-        // Stop timer started by Apps when navigating to Summary
-        // stopTimer?.("/summary");
+        // Don't stop timer yet - wait for table data to load
       });
   }, [appId, stopTimer, startTimer]);
 
 
 
   // 3 → LOAD DATA FOR SELECTED TABLE
+  const formatElapsed = (msTotal: number) => {
+    const minutes = Math.floor(msTotal / 60000);
+    const seconds = Math.floor((msTotal % 60000) / 1000);
+    const centis = Math.floor((msTotal % 1000) / 10);
+    const pad = (n: number, width = 2) => String(n).padStart(width, "0");
+    return `${pad(minutes)}m : ${pad(seconds)}s : ${pad(centis)}ms`;
+  };
+
   const loadData = async (tableName: string) => {
     if (!tableName || tableName === selectedTable) return;
 
@@ -178,6 +191,9 @@ export default function SummaryPage() {
     setTableLoading(true);
     setRows([]);
     setSummary(null);
+
+    // start timing this table's data load
+    startTimer?.(`/summary/data/${tableName}`);
 
     try {
       const data = await fetchTableData(appId, tableName);
@@ -198,6 +214,13 @@ export default function SummaryPage() {
       console.error(e);
     } finally {
       setTableLoading(false);
+      const tableElapsed = stopTimer?.(`/summary/data/${tableName}`);
+      if (tableElapsed) console.debug(`Table ${tableName} load time:`, tableElapsed);
+      // Measure total page load time locally
+      if (pageStartTimeRef.current) {
+        const totalTime = Date.now() - pageStartTimeRef.current;
+        setPageLoadTime(formatElapsed(totalTime));
+      }
     }
   };
 
@@ -273,13 +296,14 @@ export default function SummaryPage() {
         {selectedTable && (
           <>
 
-            {/* HEADER ONLY TITLE */}
+              {/* HEADER ONLY TITLE */}
             <div className="header">
-              <h2>{selectedTable}</h2>
-              {/* Page-specific analysis time */}
-              {getLastElapsed?.("/summary") && (
-                <div className="analysis-badge">AnalysisTime - {getLastElapsed!("/summary")}</div>
-              )}
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center",width: "100%" }}>
+                <h2>{selectedTable}</h2>
+                {pageLoadTime && (
+                  <div className="timer-badge">Analysis Loading Time: {pageLoadTime}</div>
+                )}
+              </div>
             </div>
 
             <SummaryReport summary={summary} rows={rows} />
@@ -418,7 +442,7 @@ export default function SummaryPage() {
                       }}
                       title="Navigate to Export tab"
                     >
-                      📤Continue to Export
+                      <img src={exportImg} alt="Export" />Continue to Export
                     </button>
                   </div>
                 </>

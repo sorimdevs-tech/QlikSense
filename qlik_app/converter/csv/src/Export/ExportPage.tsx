@@ -1,14 +1,22 @@
 import "./ExportPage.css";
 import { useLocation, useNavigate } from "react-router-dom";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useWizard } from "../context/WizardContext";
+import migrationImg from "../assets/migration2.png";
 
 export default function ExportPage() {
   const { state } = useLocation() as any;
   const navigate = useNavigate();
+  const [pageLoadTime, setPageLoadTime] = useState<string | null>(null);
 
-  const { getLastElapsed } = useWizard();
-  const lastElapsedForPage = getLastElapsed?.("/summary");
+  const { stopTimer } = useWizard();
+
+  useEffect(() => {
+    const elapsed = stopTimer?.("/export");
+    setPageLoadTime(elapsed);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
 
   // Prefer friendly appName; fallback to appId or session storage
   const appNameRaw = state?.appName || state?.appId || sessionStorage.getItem("appName") || "Unknown";
@@ -26,9 +34,13 @@ export default function ExportPage() {
 
   const appName = appNameRaw;
 
-  const [showPowerBIOptions, setShowPowerBIOptions] = useState(false);
-  const [options, setOptions] = useState<{ csv: boolean; dax: boolean }>({ csv: true, dax: false });
+  // start with nothing selected — user must choose
+  const [options, setOptions] = useState<{ csv: boolean; dax: boolean }>({ csv: false, dax: false });
   const [selectAll, setSelectAll] = useState(false);
+
+  // SSRS card state (kept separate) — will be rendered disabled by UI
+  const [ssrsOptions, setSSRSOptions] = useState<{ csv: boolean; dax: boolean }>({ csv: false, dax: false });
+  const [ssrsSelectAll, setSSRSSelectAll] = useState(false);
 
   if (!selectedTable) {
     // if the summary step completed previously, send user to Summary to pick a table
@@ -98,10 +110,13 @@ export default function ExportPage() {
   return (
     <div className="export-wrap">
       <div className="timerStyle">
-      <h2>📤 Export Data</h2>
-          <span className="label"></span>
-          <span className="value">AnalysisTime  - {lastElapsedForPage || "-"}</span>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center",width: "100%" }}>
+          <h2>📤 Export Data</h2>
+          {pageLoadTime && (
+            <div className="timer-badge">Analysis Loading Time: {pageLoadTime}</div>
+          )}
         </div>
+      </div>
 
       {/* 🔹 TOP INFO BOXES */}
       <div className="info-grid">
@@ -124,85 +139,185 @@ export default function ExportPage() {
       </div>
 
       {/* 🔹 EXPORT OPTIONS */}
-      <div className="export-options">
-        <div
-          className="export-box powerbi"
-          onClick={() => setShowPowerBIOptions(!showPowerBIOptions)}
-        >
-          🔵 Export To PowerBI
-        </div>
+      {/* <div className="export-options">
+        
 
         <div className="export-box disabled">
           Export to SSRS (Coming Soon)
         </div>
-      </div>
+      </div> */}
       
 
       {/* 🔹 EXPORT CHECKBOX OPTIONS (inside one box) */}
-      {showPowerBIOptions && (
-        <div className="powerbi-options">
-          <div className="export-box sub">
-            <div className="checkbox-row">
-              <label>
-                <input
-                  type="checkbox"
-                  checked={selectAll}
-                  onChange={() => {
-                    const newVal = !selectAll;
-                    setSelectAll(newVal);
-                    setOptions({ csv: newVal, dax: newVal });
-                  }}
-                />
-                <strong> Select All</strong>
-              </label>
-            </div>
-
-            <div className="checkbox-row">
-              <label>
-                <input
-                  type="checkbox"
-                  checked={options.csv}
-                  onChange={() => {
-                    const csv = !options.csv;
-                    setOptions((s) => ({ ...s, csv }));
-                    setSelectAll(csv && options.dax);
-                  }}
-                />
-                📄 Export as CSV
-              </label>
-            </div>
-
-            <div className="checkbox-row">
-              <label>
-                <input
-                  type="checkbox"
-                  checked={options.dax}
-                  onChange={() => {
-                    const dax = !options.dax;
-                    setOptions((s) => ({ ...s, dax }));
-                    setSelectAll(options.csv && dax);
-                  }}
-                />
-                📊 Export as DAX (Coming Soon)
-              </label>
-            </div>
-
-            <div className="actions-row">
-              <button
-                className="export-btn"
-                onClick={() => {
-                  // Export selected options
-                  if (options.csv) exportCSV();
-                  if (options.dax) exportDAX();
+      <div className="powerbi-options">
+        <div className="export-box sub">
+          <div className="export-box powerbi">
+          Export To PowerBI
+        </div>
+          <div className="checkbox-row">
+            <label>
+              <input
+                type="checkbox"
+                checked={selectAll}
+                onChange={() => {
+                  const newVal = !selectAll;
+                  setSelectAll(newVal);
+                  setOptions({ csv: newVal, dax: newVal });
                 }}
-                disabled={!options.csv && !options.dax}
-              >
-                ✅ Export Selected
-              </button>
-            </div>
+              />
+              <strong> Select All</strong>
+            </label>
+          </div>
+
+          <div className="checkbox-row">
+            <label>
+              <input
+                type="checkbox"
+                checked={options.csv}
+                onChange={() => {
+                  const csv = !options.csv;
+                  setOptions((s) => ({ ...s, csv }));
+                  setSelectAll(csv && options.dax);
+                }}
+              />
+              📄 Export as CSV
+            </label>
+          </div>
+
+          <div className="checkbox-row">
+            <label>
+              <input
+                type="checkbox"
+                checked={options.dax}
+                onChange={() => {
+                  const dax = !options.dax;
+                  setOptions((s) => ({ ...s, dax }));
+                  setSelectAll(options.csv && dax);
+                }}
+              />
+              📊 Export as DAX (Coming Soon)
+            </label>
+          </div>
+
+          <div className="actions-row">
+            <button
+              className="export-btn"
+              onClick={() => {
+                // Export selected options
+                if (options.csv) exportCSV();
+                if (options.dax) exportDAX();
+              }}
+              disabled={!options.csv && !options.dax}
+            >
+              ✅ Export Selected
+            </button>
           </div>
         </div>
-      )}
+
+        {/* <div className="export-box sub">
+          <div className="export-box ssrs disabled">
+            Export To SSRS
+          </div>
+          <div className="checkbox-row">
+            <label>
+              <input
+                type="checkbox"
+                checked={ssrsSelectAll}
+                disabled
+                onChange={() => {
+                  const newVal = !ssrsSelectAll;
+                  setSSRSSelectAll(newVal);
+                  setSSRSOptions({ csv: newVal, dax: newVal });
+                }}
+              />
+              <strong> Select All</strong>
+            </label>
+          </div>
+
+          <div className="checkbox-row">
+            <label>
+              <input
+                type="checkbox"
+                checked={ssrsOptions.csv}
+                disabled
+                onChange={() => {
+                  const csv = !ssrsOptions.csv;
+                  setSSRSOptions((s) => ({ ...s, csv }));
+                  setSSRSSelectAll(csv && ssrsOptions.dax);
+                }}
+              />
+              📄 Export as CSV
+            </label>
+          </div>
+
+          <div className="checkbox-row">
+            <label>
+              <input
+                type="checkbox"
+                checked={ssrsOptions.dax}
+                disabled
+                onChange={() => {
+                  const dax = !ssrsOptions.dax;
+                  setSSRSOptions((s) => ({ ...s, dax }));
+                  setSSRSSelectAll(ssrsOptions.csv && dax);
+                }}
+              />
+              📊 Export as DAX 
+            </label>
+          </div>
+
+          <div className="actions-row">
+            <button
+              className="export-btn"
+              onClick={() => {
+                // Export selected options (SSRS currently disabled)
+                if (ssrsOptions.csv) exportCSV();
+                if (ssrsOptions.dax) exportDAX();
+              }}
+              disabled
+            >
+              ✅ Export Selected
+            </button>
+          </div>
+        </div> */}
+
+
+        <div className="export-box sub ssrs-disabled">
+  <div className="export-box ssrs">
+    Export To SSRS
+  </div>
+
+  <div className="checkbox-row">
+    <label>
+      <input type="checkbox" checked={ssrsSelectAll} />
+      <strong> Select All</strong>
+    </label>
+  </div>
+
+  <div className="checkbox-row">
+    <label>
+      <input type="checkbox" checked={ssrsOptions.csv} />
+      📄 Export as CSV
+    </label>
+  </div>
+
+  <div className="checkbox-row">
+    <label>
+      <input type="checkbox" checked={ssrsOptions.dax} />
+      📊 Export as DAX
+    </label>
+  </div>
+
+  <div className="actions-row">
+    <button className="export-btn">
+      ✅ Export Selected
+    </button>
+  </div>
+</div>
+        
+      </div>
+
+      
 
 
 
@@ -216,7 +331,7 @@ export default function ExportPage() {
       navigate("/migration", { state: { appId: state?.appId, appName } });
     }}
   >
-    ➡️ Continue to Migration
+    <img src={migrationImg} alt="migration" /> Continue to Migration
   </button>
 </div>
     </div>
