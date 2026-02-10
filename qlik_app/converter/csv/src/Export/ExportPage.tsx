@@ -5,17 +5,18 @@ import { useWizard } from "../context/WizardContext";
 import migrationImg from "../assets/migration2.png";
 
 export default function ExportPage() {
-  const { state } = useLocation() as any;
+  const location = useLocation();
+  const { state } = location as any;
   const navigate = useNavigate();
   const [pageLoadTime, setPageLoadTime] = useState<string | null>(null);
 
   const { stopTimer } = useWizard();
 
   useEffect(() => {
+    // Stop timer and capture elapsed time whenever export page loads or location changes
     const elapsed = stopTimer?.("/export");
     setPageLoadTime(elapsed);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [location.pathname, stopTimer]);
 
 
   // Prefer friendly appName; fallback to appId or session storage
@@ -113,7 +114,7 @@ export default function ExportPage() {
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center",width: "100%" }}>
           <h2>📤 Export Data</h2>
           {pageLoadTime && (
-            <div className="timer-badge">Analysis Loading Time: {pageLoadTime}</div>
+            <div className="timer-badge">Analysis Time: {pageLoadTime}</div>
           )}
         </div>
       </div>
@@ -214,73 +215,6 @@ export default function ExportPage() {
           </div>
         </div>
 
-        {/* <div className="export-box sub">
-          <div className="export-box ssrs disabled">
-            Export To SSRS
-          </div>
-          <div className="checkbox-row">
-            <label>
-              <input
-                type="checkbox"
-                checked={ssrsSelectAll}
-                disabled
-                onChange={() => {
-                  const newVal = !ssrsSelectAll;
-                  setSSRSSelectAll(newVal);
-                  setSSRSOptions({ csv: newVal, dax: newVal });
-                }}
-              />
-              <strong> Select All</strong>
-            </label>
-          </div>
-
-          <div className="checkbox-row">
-            <label>
-              <input
-                type="checkbox"
-                checked={ssrsOptions.csv}
-                disabled
-                onChange={() => {
-                  const csv = !ssrsOptions.csv;
-                  setSSRSOptions((s) => ({ ...s, csv }));
-                  setSSRSSelectAll(csv && ssrsOptions.dax);
-                }}
-              />
-              📄 Export as CSV
-            </label>
-          </div>
-
-          <div className="checkbox-row">
-            <label>
-              <input
-                type="checkbox"
-                checked={ssrsOptions.dax}
-                disabled
-                onChange={() => {
-                  const dax = !ssrsOptions.dax;
-                  setSSRSOptions((s) => ({ ...s, dax }));
-                  setSSRSSelectAll(ssrsOptions.csv && dax);
-                }}
-              />
-              📊 Export as DAX 
-            </label>
-          </div>
-
-          <div className="actions-row">
-            <button
-              className="export-btn"
-              onClick={() => {
-                // Export selected options (SSRS currently disabled)
-                if (ssrsOptions.csv) exportCSV();
-                if (ssrsOptions.dax) exportDAX();
-              }}
-              disabled
-            >
-              ✅ Export Selected
-            </button>
-          </div>
-        </div> */}
-
 
         <div className="export-box sub ssrs-disabled">
   <div className="export-box ssrs">
@@ -289,27 +223,39 @@ export default function ExportPage() {
 
   <div className="checkbox-row">
     <label>
-      <input type="checkbox" checked={ssrsSelectAll} />
+      <input
+        type="checkbox"
+        checked={ssrsSelectAll}
+        readOnly
+      />
       <strong> Select All</strong>
     </label>
   </div>
 
   <div className="checkbox-row">
     <label>
-      <input type="checkbox" checked={ssrsOptions.csv} />
+      <input
+        type="checkbox"
+        checked={ssrsOptions.csv}
+        readOnly
+      />
       📄 Export as CSV
     </label>
   </div>
 
   <div className="checkbox-row">
     <label>
-      <input type="checkbox" checked={ssrsOptions.dax} />
+      <input
+        type="checkbox"
+        checked={ssrsOptions.dax}
+        readOnly
+      />
       📊 Export as DAX
     </label>
   </div>
 
   <div className="actions-row">
-    <button className="export-btn">
+    <button className="export-btn" disabled>
       ✅ Export Selected
     </button>
   </div>

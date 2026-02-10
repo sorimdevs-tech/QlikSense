@@ -31,6 +31,25 @@ PAGE WRAP
   border-bottom: 1px solid #ddd;
 }
 
+.table-search {
+  padding: 8px 6px 12px 6px;
+}
+
+.table-search-input {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  font-size: 13px;
+  box-sizing: border-box;
+}
+
+.table-search-input:focus {
+  outline: none;
+  border-color: #667eea;
+  box-shadow: 0 0 6px rgba(102,126,234,0.12);
+}
+
 .back-btn {
   padding: 6px 10px;
   background: #f0f0f0;

@@ -123,7 +123,7 @@ import "./Stepper.css";
 import { useNavigate, useLocation } from "react-router-dom";
 
 // ✅ ICON IMAGES (ONLY ADDITION)
-import connectImg from "../assets/connect.png";
+import connectImg from "../assets/connect3.jpg";
 import discoveryImg from "../assets/discovery.png";
 import summaryImg from "../assets/summary3.png";
 import exportImg from "../assets/export2.png";

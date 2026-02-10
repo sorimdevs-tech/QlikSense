@@ -130,20 +130,29 @@ export const fetchAISummary = async (appId: string) => {
   return text;
 };
 // qlikApi.ts
-export const fetchVehicleSummary = async (appId: string, tableName: string) => {
+// export const fetchVehicleSummary = async (appId: string, tableName: string) => {
 
-  const url = `${BASE_URL}/vehicle-summary`;
+//   const url = `${BASE_URL}/vehicle-summary`;
 
-  const res = await axios.get(url, {
-    params: {
-      app_id: appId,
-      table_name: tableName,
-    },
-  });
+//   const res = await axios.get(url, {
+//     params: {
+//       app_id: appId,
+//       table_name: tableName,
+//     },
+//   });
 
-  return res.data.summary;
+//   return res.data.summary;
+// };
+
+export const fetchVehicleSummary = async (
+  app_id: string,
+  table_name: string
+) => {
+  const res = await axios.get(
+    `/applications/${app_id}/script/table/${table_name}`
+  );
+  return res.data;
 };
-
 
  
 export const connectQlik = async () => {

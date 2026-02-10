@@ -47,8 +47,8 @@ def get_qlik_websocket_client():
         raise HTTPException(status_code=500, detail=str(e))
 
 # Constants
-TEST_USERNAME = "testuser"
-TEST_PASSWORD = "test123"
+TEST_USERNAME = "ponnuchamy.vellaikannu@sorimtechnologies.com"
+TEST_PASSWORD = "qlikCloud000"
 HARDCODED_TENANT = "https://c8vlzp3sx6akvnh.in.qlikcloud.com"
 
 @app.post("/validate-tenant")

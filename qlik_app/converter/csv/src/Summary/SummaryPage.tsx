@@ -42,6 +42,8 @@ export default function SummaryPage() {
   const [tableQuery, setTableQuery] = useState<string>("");
   const [pageSize, setPageSize] = useState<number>(10);
   const [currentPage, setCurrentPage] = useState<number>(1);
+  // Search for table list on the left panel
+  const [tableListQuery, setTableListQuery] = useState<string>("");
 
   // Derived pagination lists with search + sorting
   const [orderBy, setOrderBy] = useState<string>("");
@@ -120,6 +122,21 @@ export default function SummaryPage() {
     setCurrentPage(1);
   }, [rows, pageSize, tableQuery]);
 
+  // Filter the left-side table list when the user types in the table search box
+  useEffect(() => {
+    if (!tableListQuery) {
+      setFilteredTables(tables);
+      return;
+    }
+
+    const q = tableListQuery.toLowerCase();
+    const filtered = (tables || []).filter((t) => {
+      const name = typeof t === "string" ? t : t?.name || "";
+      return String(name).toLowerCase().includes(q);
+    });
+    setFilteredTables(filtered);
+  }, [tableListQuery, tables]);
+
   // 1 → GET APP ID FROM NAVIGATION STATE
   useEffect(() => {
     const state = location.state as any;
@@ -135,7 +152,7 @@ export default function SummaryPage() {
   }, [location, navigate]);
 
   // 2 → LOAD TABLE LIST
-  const { stopTimer, startTimer } = useWizard();
+  const { stopTimer, startTimer, getLastElapsed } = useWizard();
 
   useEffect(() => {
     if (!appId) return;
@@ -214,12 +231,22 @@ export default function SummaryPage() {
       console.error(e);
     } finally {
       setTableLoading(false);
+
+      // Prefer the specific table/data load elapsed if available
       const tableElapsed = stopTimer?.(`/summary/data/${tableName}`);
-      if (tableElapsed) console.debug(`Table ${tableName} load time:`, tableElapsed);
-      // Measure total page load time locally
-      if (pageStartTimeRef.current) {
-        const totalTime = Date.now() - pageStartTimeRef.current;
-        setPageLoadTime(formatElapsed(totalTime));
+      if (tableElapsed) {
+        console.debug(`Table ${tableName} load time:`, tableElapsed);
+        setPageLoadTime(tableElapsed);
+      } else {
+        // Fallback: show navigation/load time for the Summary page if available
+        const navElapsed = getLastElapsed?.("/summary");
+        if (navElapsed) {
+          setPageLoadTime(navElapsed);
+        } else if (pageStartTimeRef.current) {
+          // As a last resort, show local elapsed since page mount
+          const totalTime = Date.now() - pageStartTimeRef.current;
+          setPageLoadTime(formatElapsed(totalTime));
+        }
       }
     }
   };
@@ -257,6 +284,17 @@ export default function SummaryPage() {
       <div className="left-panel">
         <div className="panel-header">
           <h3 className="title">Tables {`(${tables.length})`}</h3>
+        </div>
+
+        {/* Table list search (searches the list of table names) */}
+        <div className="table-search">
+          <input
+            type="search"
+            placeholder="Search tables..."
+            value={tableListQuery}
+            onChange={(e) => setTableListQuery(e.target.value)}
+            className="table-search-input"
+          />
         </div>
 
 
@@ -301,7 +339,7 @@ export default function SummaryPage() {
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center",width: "100%" }}>
                 <h2>{selectedTable}</h2>
                 {pageLoadTime && (
-                  <div className="timer-badge">Analysis Loading Time: {pageLoadTime}</div>
+                  <div className="timer-badge">Analysis Time: {pageLoadTime}</div>
                 )}
               </div>
             </div>

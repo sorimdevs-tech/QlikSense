@@ -134,7 +134,7 @@ export default function AppsPage() {
             {/* Page loading time */}
             {pageLoadTime && !loading && (
               <div className="timer-badge">
-                Analysis Loading Time: {pageLoadTime}
+                Analysis Time: {pageLoadTime}
               </div>
             )}
           </div>

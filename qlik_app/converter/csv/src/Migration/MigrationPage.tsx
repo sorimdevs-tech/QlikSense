@@ -32,7 +32,7 @@ export default function MigrationPage() {
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
         <h2>Migration</h2>
         {pageLoadTime && (
-          <div className="timer-badge">Analysis Loading Time: {pageLoadTime}</div>
+          <div className="timer-badge">Analysis Time: {pageLoadTime}</div>
         )}
       </div>
 
