@@ -9,7 +9,7 @@ export default function Header() {
       <div className="logo-section">
         <img
           src={qlikaiLogo}
-          alt="QlikAI Logo"
+          alt="QlikAI LoGo"
           className="logo-image"
         />
       </div>
