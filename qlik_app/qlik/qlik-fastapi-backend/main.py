@@ -47,8 +47,13 @@ app.add_middleware(
         "http://127.0.0.1:5174",
         "http://127.0.0.1:5175",
         "http://127.0.0.1:5176",
+        # Render deployments
+        "https://qlik-frontend.onrender.com",
+        "https://qlik-sense-cloud.onrender.com",
+        "https://qlikai.onrender.com"
     ],
-    allow_origin_regex=r"http://localhost:\\d+|http://127\\.0\\.0\\.1:\\d+",
+   
+    allow_origin_regex=r"http://localhost:\d+|http://127\.0\.0\.1:\d+|https://.*\.onrender\.com",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

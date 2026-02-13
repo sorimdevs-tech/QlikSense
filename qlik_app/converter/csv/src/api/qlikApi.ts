@@ -3,7 +3,8 @@
 import axios from "axios";
  
 // Use environment variable for production (set by Render), fallback to localhost for dev
-const BASE_URL = import.meta.env.VITE_API_URL || "http://127.0.0.1:8000";
+// const BASE_URL = import.meta.env.VITE_API_URL || "http://127.0.0.1:8000";
+const BASE_URL = import.meta.env.VITE_API_URL || "https://qlik-sense-cloud.onrender.com";
  
 // Convert FastAPI response → simple format
 // ✅ UPDATE HERE

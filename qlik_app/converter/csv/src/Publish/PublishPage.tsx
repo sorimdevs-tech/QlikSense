@@ -91,7 +91,8 @@ export default function PublishPage() {
       setStatusBoxes({ columns: true, powerbi: false, finished: false });
       console.log("🔐 Step 2: Initiating Power BI authentication...");
       
-      const authRes = await fetch("http://localhost:8000/powerbi/login/acquire-token", {
+      // const authRes = await fetch("http://localhost:8000/powerbi/login/acquire-token", {
+      const authRes = await fetch("https://qlik-sense-cloud.onrender.com/powerbi/login/acquire-token", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({}),
@@ -115,7 +116,7 @@ export default function PublishPage() {
         await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1 second between checks
 
         try {
-          const statusRes = await fetch("http://localhost:8000/powerbi/login/status", {
+          const statusRes = await fetch("https://qlik-sense-cloud.onrender.com/powerbi/login/status", {
             method: "POST",
           });
           const statusData = await statusRes.json();
@@ -156,7 +157,7 @@ export default function PublishPage() {
       form.append("has_csv", hasCSV ? "true" : "false");
       form.append("has_dax", hasDAX ? "true" : "false");
 
-      const res = await fetch("http://localhost:8000/powerbi/process", {
+      const res = await fetch("https://qlik-sense-cloud.onrender.com/powerbi/process", {
         method: "POST",
         body: form,
       });
