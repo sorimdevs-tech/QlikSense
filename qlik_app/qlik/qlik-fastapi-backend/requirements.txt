@@ -10,3 +10,4 @@ numpy>=1.26.0
 sqlalchemy
 httpx
 pydantic>=2.10.0
+msal==1.31.0
