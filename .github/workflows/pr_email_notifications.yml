@@ -1,0 +1,30 @@
+on:
+  pull_request:
+    types: [opened, reopened, ready_for_review]
+
+jobs:
+  notify-approvers:
+    name: Email approvers on PR open
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Send PR request email
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: ${{ secrets.SMTP_HOST }}
+          server_port: ${{ secrets.SMTP_PORT }}
+          username: ${{ secrets.SMTP_USERNAME }}
+          password: ${{ secrets.SMTP_PASSWORD }}
+          secure: true
+          subject: "PR Review Required: ${{ github.event.pull_request.title }}"
+          body: |
+            A new Pull Request needs review.
+
+            Repository: ${{ github.repository }}
+            PR Title: ${{ github.event.pull_request.title }}
+            Author: ${{ github.event.pull_request.user.login }}
+
+            Review here:
+            ${{ github.event.pull_request.html_url }}
+          to: ${{ secrets.TEAM_APPROVER_EMAIL }}
+          from: ${{ secrets.FROM_EMAIL }}

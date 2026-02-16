@@ -1,0 +1,42 @@
+#############################################
+# CODEOWNERS
+# Defines who must review Pull Requests
+#############################################
+
+# -------------------------------------------------
+# Frontend ownership
+# Any change inside clinical-frontend/
+# will require approval from frontend approvers
+# -------------------------------------------------
+/clinical-frontend/    @sorimdevs-tech
+
+
+# -------------------------------------------------
+# Backend ownership
+# Any change inside clinical-backend/
+# will require approval from backend approvers
+# -------------------------------------------------
+/clinical-backend/     @sorimdevs-tech
+
+
+# -------------------------------------------------
+# GitHub workflows & CI/CD files
+# Protects pipelines from accidental changes
+# -------------------------------------------------
+/.github/workflows/    @sorimdevs-tech
+
+
+# -------------------------------------------------
+# Configuration & root-level files
+# -------------------------------------------------
+*.yml                  @sorimdevs-tech
+*.yaml                 @sorimdevs-tech
+*.env                  @sorimdevs-tech
+Dockerfile             @sorimdevs-tech
+
+
+# -------------------------------------------------
+# Default fallback owner
+# If a file does not match above rules
+# -------------------------------------------------
+*                      @sorimdevs-tech
