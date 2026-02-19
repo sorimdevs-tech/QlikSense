@@ -722,16 +722,31 @@ export const fetchAISummaryFromBackend = async (
       metrics["Total Value"] = totalValue;
     }
 
+    // Send actual sample data (first 10 rows) for better AI context
+    const sampleData = rows.slice(0, 10);
+
     const res = await axios.post(`${BASE_URL}/ai/summary`, {
       table_name: tableName,
       metrics: metrics,
       row_count: rows.length,
       column_count: summary?.columnCount || Object.keys(rows[0] || {}).length,
+      sample_data: sampleData,  // Send actual table rows for AI analysis
     });
 
     if (res.data.success && res.data.summary) {
       // Split summary into bullet points for display
       const summaryText = res.data.summary;
+      
+      // Check if AI returned bullet points (starts with •)
+      if (summaryText.includes('•')) {
+        // Split by bullet points
+        const bullets = summaryText
+          .split(/•/)
+          .map((s: string) => s.trim())
+          .filter((s: string) => s.length > 0);
+        return bullets;
+      }
+      
       // If it's a paragraph, split by sentences and create bullets
       const sentences = summaryText.split(/[.!?]+/).filter((s: string) => s.trim());
       return sentences.map((s: string) => s.trim()).filter((s: string) => s.length > 0);

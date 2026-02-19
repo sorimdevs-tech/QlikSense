@@ -4240,6 +4240,7 @@ class AISummaryRequest(BaseModel):
     metrics: Dict[str, Any]
     row_count: int = 0
     column_count: int = 0
+    sample_data: Optional[List[Dict[str, Any]]] = None  # Actual table rows for better context
 
 
 @app.post("/ai/summary")
@@ -4258,7 +4259,8 @@ async def generate_ai_summary(request: AISummaryRequest):
             "Average Value": 50
         },
         "row_count": 1000,
-        "column_count": 5
+        "column_count": 5,
+        "sample_data": [{"city": "New York", "sales": 1000}, {"city": "Chicago", "sales": 800}]
     }
     """
     try:
@@ -4278,6 +4280,41 @@ async def generate_ai_summary(request: AISummaryRequest):
             else:
                 metrics_text += f"{key}: {value}\n"
         
+        # Build sample data context if provided
+        sample_data_text = ""
+        if request.sample_data and len(request.sample_data) > 0:
+            # Get columns from first row
+            columns = list(request.sample_data[0].keys())
+            sample_data_text = f"\nColumns: {', '.join(columns)}\n"
+            sample_data_text += f"Sample Records (first 5 rows):\n"
+            
+            for i, row in enumerate(request.sample_data[:5]):
+                row_values = []
+                for col in columns[:8]:  # Limit to first 8 columns for readability
+                    val = row.get(col, "")
+                    if isinstance(val, str) and len(val) > 30:
+                        val = val[:27] + "..."
+                    row_values.append(f"{col}={val}")
+                sample_data_text += f"  Row {i+1}: {', '.join(row_values)}\n"
+            
+            # Analyze data patterns
+            if len(request.sample_data) >= 3:
+                # Find numeric columns and calculate insights
+                numeric_cols = []
+                categorical_cols = []
+                
+                for col in columns:
+                    values = [row.get(col) for row in request.sample_data if row.get(col) is not None]
+                    if values and all(isinstance(v, (int, float)) or (isinstance(v, str) and v.replace(',', '').replace('-', '').replace('.', '').isdigit()) for v in values if v):
+                        numeric_cols.append(col)
+                    elif values and len(set(str(v) for v in values)) < len(values):  # Has duplicates = categorical
+                        categorical_cols.append(col)
+                
+                if numeric_cols:
+                    sample_data_text += f"\nNumeric columns detected: {', '.join(numeric_cols[:5])}\n"
+                if categorical_cols:
+                    sample_data_text += f"Categorical columns detected: {', '.join(categorical_cols[:5])}\n"
+        
         # Create prompt for the model
         prompt = f"""<s>[INST] You are a data analyst assistant. Generate a concise executive summary for the following dataset.
 
@@ -4287,8 +4324,9 @@ Total Columns: {request.column_count}
 
 Key Metrics:
 {metrics_text}
+{sample_data_text}
 
-Generate a professional executive summary (3-4 sentences) highlighting the key insights. [/INST]"""
+Generate a professional executive summary (3-4 bullet points) highlighting the key insights from this data. Each bullet point should be on a new line and start with "• ". Focus on the most important patterns, trends, or notable values. [/INST]"""
 
         # Call Hugging Face Inference API
         model_id = "mistralai/Mistral-7B-Instruct-v0.2"
