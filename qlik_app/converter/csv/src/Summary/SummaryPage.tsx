@@ -2425,11 +2425,11 @@ export default function SummaryPage() {
   const buildRelations = (tableList: TableInfo[]) => {
     const map: Record<string, Set<string>> = {};
 
-    const normalizeFields = (t: TableInfo) => {
+    const normalizeFields = (t: TableInfo): Set<string> => {
       if (!t) return new Set<string>();
       if (typeof t === "string") return new Set<string>();
-      const fields = t.fields || t.columns || [];
-      return new Set((fields || []).map((f: any) => String(f).toLowerCase()));
+      const fields = (t as any).fields || (t as any).columns || [];
+      return new Set<string>((fields || []).map((f: any) => String(f).toLowerCase()));
     };
 
     const names = (tableList || []).map((t) => (typeof t === 'string' ? t : t?.name || '')).filter(Boolean);
@@ -2697,7 +2697,8 @@ export default function SummaryPage() {
             } else if (deg === bestDeg && deg > 0) {
               // tie-breaker: prefer table with more fields
               const fcount = typeof t === 'string' ? 0 : (t?.fields || []).length || 0;
-              const currentFcount = (typeof (sorted.find(s => nameOf(s) === bestName) as any) === 'string') ? 0 : ((sorted.find(s => nameOf(s) === bestName) as any)?.fields || []).length || 0;
+              const found = sorted.find((s: TableInfo) => nameOf(s) === bestName);
+              const currentFcount = typeof found === 'string' ? 0 : ((found as any)?.fields || []).length || 0;
               if (fcount > currentFcount) bestName = n;
             }
           }
