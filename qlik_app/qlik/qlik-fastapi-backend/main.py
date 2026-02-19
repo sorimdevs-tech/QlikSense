@@ -2269,14 +2269,12 @@ import sys
 import os
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from fastapi import FastAPI, HTTPException, Depends, Query, UploadFile, File, BackgroundTasks, Form, Body
+from fastapi import FastAPI, HTTPException, Depends, Query, UploadFile, File, Form, Body
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, PlainTextResponse, StreamingResponse
 from typing import List, Dict, Any, Optional
-import threading
 import time
 import requests
-import json
 import re
 import base64
 import io
@@ -2294,7 +2292,11 @@ from table_tracker import enhance_tables_with_timestamps
 from powerbi_service_delegated import PowerBIService, infer_schema_from_rows
 from powerbi_auth import get_auth_manager
 from pydantic import BaseModel
+import httpx
 
+# Hugging Face API configuration
+HF_API_KEY = os.getenv("HUGGINGFACE_API_KEY", "")
+HF_API_URL = "https://api-inference.huggingface.co/models"
 
 qlik_client = QlikClient()
 
@@ -4209,7 +4211,8 @@ async def chat_help():
         "endpoints": {
             "/chat/analyze": "Ask a single question about your data",
             "/chat/summary-hf": "Generate AI-powered summary using Hugging Face",
-            "/chat/multi-turn": "Multi-turn conversation with context"
+            "/chat/multi-turn": "Multi-turn conversation with context",
+            "/ai/summary": "Generate AI-powered executive summary using Hugging Face Inference API"
         },
         "example_questions": [
             "What is the total sales amount?",
@@ -4226,6 +4229,165 @@ async def chat_help():
             "Questions are answered based on the metrics of your data",
             "You can ask follow-up questions in multi-turn conversations"
         ]
+    }
+
+
+# ==================== AI SUMMARY USING HUGGING FACE INFERENCE API ====================
+
+class AISummaryRequest(BaseModel):
+    """Request model for AI summary"""
+    table_name: str
+    metrics: Dict[str, Any]
+    row_count: int = 0
+    column_count: int = 0
+
+
+@app.post("/ai/summary")
+async def generate_ai_summary(request: AISummaryRequest):
+    """
+    Generate an AI-powered executive summary using Hugging Face Inference API.
+    
+    Uses Mistral-7B-Instruct model for generating intelligent summaries.
+    
+    Example request:
+    {
+        "table_name": "Sales Data",
+        "metrics": {
+            "Total Records": 1000,
+            "Total Value": 50000,
+            "Average Value": 50
+        },
+        "row_count": 1000,
+        "column_count": 5
+    }
+    """
+    try:
+        if not HF_API_KEY:
+            # Fallback to rule-based summary if no API key
+            return generate_fallback_summary(request.table_name, request.metrics, request.row_count, request.column_count)
+        
+        # Build context from metrics
+        metrics_text = ""
+        for key, value in request.metrics.items():
+            if isinstance(value, dict):
+                metrics_text += f"{key}:\n"
+                for k, v in list(value.items())[:5]:
+                    metrics_text += f"  - {k}: {v}\n"
+            elif isinstance(value, list):
+                metrics_text += f"{key}: {', '.join(str(v) for v in value[:5])}\n"
+            else:
+                metrics_text += f"{key}: {value}\n"
+        
+        # Create prompt for the model
+        prompt = f"""<s>[INST] You are a data analyst assistant. Generate a concise executive summary for the following dataset.
+
+Table: {request.table_name}
+Total Rows: {request.row_count}
+Total Columns: {request.column_count}
+
+Key Metrics:
+{metrics_text}
+
+Generate a professional executive summary (3-4 sentences) highlighting the key insights. [/INST]"""
+
+        # Call Hugging Face Inference API
+        model_id = "mistralai/Mistral-7B-Instruct-v0.2"
+        api_url = f"{HF_API_URL}/{model_id}"
+        
+        headers = {
+            "Authorization": f"Bearer {HF_API_KEY}",
+            "Content-Type": "application/json"
+        }
+        
+        payload = {
+            "inputs": prompt,
+            "parameters": {
+                "max_new_tokens": 200,
+                "temperature": 0.7,
+                "top_p": 0.9,
+                "return_full_text": False
+            }
+        }
+        
+        print(f"🤖 Calling Hugging Face API for AI summary...")
+        
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            response = await client.post(api_url, headers=headers, json=payload)
+            
+            if response.status_code != 200:
+                print(f"⚠️ HF API error: {response.status_code} - {response.text}")
+                return generate_fallback_summary(request.table_name, request.metrics, request.row_count, request.column_count)
+            
+            result = response.json()
+            
+            # Extract generated text
+            if isinstance(result, list) and len(result) > 0:
+                generated_text = result[0].get("generated_text", "")
+            elif isinstance(result, dict):
+                generated_text = result.get("generated_text", "")
+            else:
+                generated_text = str(result)
+            
+            # Clean up the response
+            summary = generated_text.strip()
+            
+            # Remove any remaining prompt artifacts
+            if "[/INST]" in summary:
+                summary = summary.split("[/INST]")[-1].strip()
+            if "[INST]" in summary:
+                summary = summary.replace("[INST]", "").strip()
+            
+            print(f"✅ AI Summary generated successfully")
+            
+            return {
+                "success": True,
+                "table_name": request.table_name,
+                "summary": summary,
+                "source": "huggingface_mistral",
+                "model": model_id,
+                "metrics": request.metrics
+            }
+    
+    except httpx.TimeoutException:
+        print("⚠️ HF API timeout, using fallback")
+        return generate_fallback_summary(request.table_name, request.metrics, request.row_count, request.column_count)
+    except Exception as e:
+        print(f"❌ AI summary error: {str(e)}")
+        return generate_fallback_summary(request.table_name, request.metrics, request.row_count, request.column_count)
+
+
+def generate_fallback_summary(table_name: str, metrics: Dict[str, Any], row_count: int, column_count: int) -> Dict[str, Any]:
+    """Generate a rule-based summary when AI is not available"""
+    
+    # Extract key metrics
+    total_records = metrics.get("Total Records", row_count)
+    total_value = metrics.get("Total Value", "N/A")
+    avg_value = metrics.get("Average Value", "N/A")
+    
+    # Build summary text
+    summary_parts = [f"The {table_name} dataset contains {total_records} records across {column_count} columns."]
+    
+    if total_value != "N/A":
+        summary_parts.append(f"The total value amounts to {total_value:,}.")
+    
+    if avg_value != "N/A":
+        summary_parts.append(f"On average, each record has a value of {avg_value}.")
+    
+    # Add top category info if available
+    top_cats = metrics.get("Top Categories", {})
+    if top_cats:
+        top_cat_name = list(top_cats.keys())[0] if top_cats else None
+        if top_cat_name:
+            summary_parts.append(f"The leading category is '{top_cat_name}'.")
+    
+    summary = " ".join(summary_parts)
+    
+    return {
+        "success": True,
+        "table_name": table_name,
+        "summary": summary,
+        "source": "rule_based_fallback",
+        "metrics": metrics
     }
 
 

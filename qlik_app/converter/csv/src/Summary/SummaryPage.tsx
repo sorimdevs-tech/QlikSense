@@ -1,7 +1,7 @@
 import "./SummaryPage.css";
 import { useEffect, useState, useMemo, useRef } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { fetchTables, fetchTableData } from "../api/qlikApi";
+import { fetchTables, fetchTableData, fetchAISummaryFromBackend } from "../api/qlikApi";
 import Csvicon from "../assets/Csvicon.png";
 import { useWizard } from "../context/WizardContext";
 import SchemaModal from "../components/SchemaModal/SchemaModal";
@@ -1223,18 +1223,21 @@ export const SummaryReport: React.FC<SummaryReportProps> = ({
   summary,
   rows,
 }) => {
-  if (!summary && rows.length === 0) return null;
- 
+  // State for AI-generated summary
+  const [aiSummary, setAiSummary] = useState<string[]>([]);
+  const [aiLoading, setAiLoading] = useState(false);
+  const [tableName, setTableName] = useState<string>("");
+
   // Combine ALL categorical data into one pie chart
   const allCategoricalCounts: Record<string, number> = {};
   let topCityValue = "";
   let topCityCount = 0;
   const cityCount: Record<string, number> = {};
- 
+
   rows.forEach((row) => {
     Object.entries(row).forEach(([key, value]) => {
       if (key.toLowerCase().includes('id')) return;
- 
+
       const num = Number(value);
       if (isNaN(num) || num === null || num === 0) {
         // Categorical data
@@ -1253,7 +1256,7 @@ export const SummaryReport: React.FC<SummaryReportProps> = ({
       }
     });
   });
- 
+
   // Calculate metrics
   const totalVehicles = rows.length;
   const totalSales = rows.reduce((sum, row) => {
@@ -1264,9 +1267,46 @@ export const SummaryReport: React.FC<SummaryReportProps> = ({
     return sum + (Number(salesVal) || 0);
   }, 0);
   const salesM = (totalSales / 1000000).toFixed(2);
- 
-  // Generate executive summary text
-  const generateExecutiveSummary = () => {
+
+  // Get table name from summary
+  const currentTableName = summary?.table || "Dataset";
+
+  // Fetch AI summary when data changes
+  useEffect(() => {
+    if (!rows || rows.length === 0 || !summary) {
+      setAiSummary([]);
+      return;
+    }
+
+    // Avoid re-fetching for same table
+    if (currentTableName === tableName && aiSummary.length > 0) {
+      return;
+    }
+
+    setTableName(currentTableName);
+    setAiLoading(true);
+
+    // Call AI summary endpoint
+    fetchAISummaryFromBackend(currentTableName, rows, summary)
+      .then((aiPoints) => {
+        if (aiPoints && aiPoints.length > 0) {
+          setAiSummary(aiPoints);
+        } else {
+          // Fallback to local summary
+          setAiSummary([]);
+        }
+      })
+      .catch((err) => {
+        console.error("AI Summary fetch failed:", err);
+        setAiSummary([]);
+      })
+      .finally(() => {
+        setAiLoading(false);
+      });
+  }, [rows, summary, currentTableName]);
+
+  // Generate executive summary text (local fallback)
+  const generateLocalSummary = () => {
     const topCity = topCityValue || "leading";
     const topEntries = Object.entries(allCategoricalCounts)
       .sort((a, b) => b[1] - a[1])
@@ -1274,13 +1314,15 @@ export const SummaryReport: React.FC<SummaryReportProps> = ({
    
     const bulletPoints = [];
    
-    bulletPoints.push(`Dataset contains ${totalVehicles} vehicles with total sales value of ${salesM}M`);
-    bulletPoints.push(`${topCity} is the leading city with ${topCityCount} vehicles`);
+    bulletPoints.push(`Dataset contains ${totalVehicles} records with total value of ${salesM}M`);
+    if (topCityValue) {
+      bulletPoints.push(`${topCity} is the leading city with ${topCityCount} records`);
+    }
    
     if (topEntries.length > 0) {
       const topItem = topEntries[0];
       const percentage = ((topItem[1] / totalVehicles) * 100).toFixed(1);
-      bulletPoints.push(`Primary market segment: ${topItem[0].split(': ')[1]} (${percentage}% of dataset)`);
+      bulletPoints.push(`Primary segment: ${topItem[0].split(': ')[1]} (${percentage}% of dataset)`);
     }
    
     if (topEntries.length > 1) {
@@ -1289,49 +1331,38 @@ export const SummaryReport: React.FC<SummaryReportProps> = ({
       bulletPoints.push(`Secondary segment: ${secondItem[0].split(': ')[1]} (${percentage}% of dataset)`);
     }
    
-    bulletPoints.push(`Strong market performance with significant concentration in key geographical regions`);
-    bulletPoints.push(`Diversified product portfolio across multiple categories`);
+    bulletPoints.push(`Strong performance with significant concentration in key areas`);
    
     return bulletPoints;
   };
- 
+
+  // Determine which summary to display
+  const displaySummary = aiSummary.length > 0 ? aiSummary : generateLocalSummary();
+
+  if (!summary && rows.length === 0) return null;
+
   return (
     <div className="summary-report">
-      {/* Top Metrics Cards */}
-      {/* <div className="metrics-container">
-        <div className="metric-card">
-          <div className="metric-value">{totalVehicles}</div>
-          <div className="metric-label">Total Vehicles</div>
-        </div>
-        <div className="metric-card">
-          <div className="metric-value">{salesM}</div>
-          <div className="metric-label">Total Sales (M)</div>
-        </div>
-        <div className="metric-card">
-          <div className="metric-value">{(totalSales * 0.01).toFixed(1)}</div>
-          <div className="metric-label">2025 Sales (M)</div>
-        </div>
-        <div className="metric-card">
-          <div className="metric-value">{topCityValue}</div>
-          <div className="metric-label">Top City</div>
-        </div>
-      </div> */}
- 
       {/* Analytics Container - Pie Chart and Summary Side by Side */}
       <div className="analytics-container">
         {/* Left: Chart Section */}
         {Object.keys(allCategoricalCounts).length > 0 && (
           <div className="chart-section">
-            {/* <h4>Top Cities by Sales Value</h4> */}
             <PieChart data={allCategoricalCounts} title="" />
           </div>
         )}
        
         {/* Right: AI Summary Section */}
         <div className="hf-summary-section">
-          <h4>Executive Summary</h4>
+          <h4>
+            Executive Summary
+            {aiLoading && <span style={{ marginLeft: 8, fontSize: 12, color: '#666' }}>(Generating AI insights...)</span>}
+            {aiSummary.length > 0 && !aiLoading && (
+              <span style={{ marginLeft: 8, fontSize: 10, color: '#10b981', fontWeight: 'normal' }}>🤖 AI Generated</span>
+            )}
+          </h4>
           <ul className="hf-summary-content">
-            {generateExecutiveSummary().map((point, idx) => (
+            {displaySummary.map((point, idx) => (
               <li key={idx}>{point}</li>
             ))}
           </ul>

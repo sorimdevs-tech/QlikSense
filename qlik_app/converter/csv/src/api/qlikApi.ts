@@ -671,3 +671,76 @@ export const downloadCSVFile = (
   link.click();
   document.body.removeChild(link);
 };
+
+// 🤖 AI-powered summary using Hugging Face LLM
+export const fetchAISummaryFromBackend = async (
+  tableName: string,
+  rows: any[],
+  summary: any
+): Promise<string[]> => {
+  try {
+    // Prepare metrics for AI
+    const metrics: any = {
+      "Total Records": rows.length,
+      "Column Count": summary?.columnCount || Object.keys(rows[0] || {}).length,
+    };
+
+    // Add numeric analysis if available
+    if (summary?.numericAnalysis) {
+      for (const [key, value] of Object.entries(summary.numericAnalysis)) {
+        const v = value as any;
+        if (v.avg !== undefined) {
+          metrics[`${key} Average`] = v.avg;
+        }
+        if (v.min !== undefined) {
+          metrics[`${key} Min`] = v.min;
+        }
+        if (v.max !== undefined) {
+          metrics[`${key} Max`] = v.max;
+        }
+      }
+    }
+
+    // Add category counts if available
+    if (summary?.categoryCounts) {
+      for (const [key, value] of Object.entries(summary.categoryCounts)) {
+        metrics[`Top ${key}`] = value;
+      }
+    }
+
+    // Calculate total value from numeric columns
+    let totalValue = 0;
+    rows.forEach((row) => {
+      Object.values(row).forEach((val) => {
+        const num = Number(val);
+        if (!isNaN(num) && num > 100) {
+          totalValue += num;
+        }
+      });
+    });
+    if (totalValue > 0) {
+      metrics["Total Value"] = totalValue;
+    }
+
+    const res = await axios.post(`${BASE_URL}/ai/summary`, {
+      table_name: tableName,
+      metrics: metrics,
+      row_count: rows.length,
+      column_count: summary?.columnCount || Object.keys(rows[0] || {}).length,
+    });
+
+    if (res.data.success && res.data.summary) {
+      // Split summary into bullet points for display
+      const summaryText = res.data.summary;
+      // If it's a paragraph, split by sentences and create bullets
+      const sentences = summaryText.split(/[.!?]+/).filter((s: string) => s.trim());
+      return sentences.map((s: string) => s.trim()).filter((s: string) => s.length > 0);
+    }
+
+    return [];
+  } catch (error: any) {
+    console.error("❌ AI Summary error:", error.response?.data || error.message);
+    // Return empty array to fall back to local summary
+    return [];
+  }
+};
