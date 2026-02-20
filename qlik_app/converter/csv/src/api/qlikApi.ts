@@ -673,11 +673,22 @@ export const downloadCSVFile = (
 };
 
 // 🤖 AI-powered summary using Hugging Face LLM
+export interface AISummaryResponse {
+  success: boolean;
+  table_name: string;
+  summary: string;
+  source: string;
+  model?: string;
+  metrics: any;
+  chart_data: Array<{ label: string; value: number }>;
+  chart_label: string;
+}
+
 export const fetchAISummaryFromBackend = async (
   tableName: string,
   rows: any[],
   summary: any
-): Promise<string[]> => {
+): Promise<AISummaryResponse> => {
   try {
     // Prepare metrics for AI
     const metrics: any = {
@@ -733,29 +744,19 @@ export const fetchAISummaryFromBackend = async (
       sample_data: sampleData,  // Send actual table rows for AI analysis
     });
 
-    if (res.data.success && res.data.summary) {
-      // Split summary into bullet points for display
-      const summaryText = res.data.summary;
-      
-      // Check if AI returned bullet points (starts with •)
-      if (summaryText.includes('•')) {
-        // Split by bullet points
-        const bullets = summaryText
-          .split(/•/)
-          .map((s: string) => s.trim())
-          .filter((s: string) => s.length > 0);
-        return bullets;
-      }
-      
-      // If it's a paragraph, split by sentences and create bullets
-      const sentences = summaryText.split(/[.!?]+/).filter((s: string) => s.trim());
-      return sentences.map((s: string) => s.trim()).filter((s: string) => s.length > 0);
-    }
-
-    return [];
+    // Return the full response object with chart_data
+    return res.data as AISummaryResponse;
   } catch (error: any) {
     console.error("❌ AI Summary error:", error.response?.data || error.message);
-    // Return empty array to fall back to local summary
-    return [];
+    // Return empty response object to fall back to local summary
+    return {
+      success: false,
+      table_name: tableName,
+      summary: "",
+      source: "error",
+      metrics: {},
+      chart_data: [],
+      chart_label: "",
+    };
   }
 };
