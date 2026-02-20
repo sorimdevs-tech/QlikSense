@@ -8,7 +8,7 @@ services:
     repo: https://github.com/sorimdevs-tech/qlik_new.git
     rootDirectory: /
     buildCommand: pip install -r qlik_app/qlik/qlik-fastapi-backend/requirements.txt --no-cache-dir
-startCommand: python qlik_app/qlik/qlik-fastapi-backend/main.py --host 0.0.0.0 --port $PORT
+startCommand: uvicorn qlik_app.qlik.qlik-fastapi-backend.main:app --host 0.0.0.0 --port $PORT
     envVars:
       - key: PYTHON_VERSION
         value: "3.11.0"
