@@ -22,8 +22,10 @@ startCommand: python qlik_app/qlik/qlik-fastapi-backend/main.py
         fromGroup: qlik-secrets
       - key: QLIK_TENANT_URL
         value: "https://c8vlzp3sx6akvnh.in.qlikcloud.com"
-      - key: QLIK_API_BASE_URL
+- key: QLIK_API_BASE_URL
         value: "https://c8vlzp3sx6akvnh.in.qlikcloud.com/api/v1"
+- key: QLIK_API_KEY
+        fromGroup: qlik-secrets
 
   # Frontend Static Site
   - name: qlik-frontend
