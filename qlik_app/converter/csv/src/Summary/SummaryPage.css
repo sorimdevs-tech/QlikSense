@@ -332,7 +332,7 @@ PAGE WRAP
 }
  
 .download-btn {
-  background-color: #0072c6;
+  background-color: #0b3a66;
   color: #fff;
   border: none;
   border-radius: 4px;
@@ -347,7 +347,87 @@ PAGE WRAP
 .download-btn:hover {
   background-color: #005fa3;
 }
- 
+ /* ===================================================
+   ADD THESE STYLES TO YOUR SummaryPage.css
+   Place them near your existing .download-btn styles
+   =================================================== */
+
+/* Publish MQuery to Power BI button */
+.publish-pbi-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+  padding: 9px 18px;
+  background: linear-gradient(135deg, #f0a500 0%, #e07b00 100%);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 6px rgba(240, 165, 0, 0.35);
+  letter-spacing: 0.02em;
+  width: fit-content;
+}
+
+.publish-pbi-btn:hover:not(:disabled) {
+  background: linear-gradient(135deg, #ffb820 0%, #f08c00 100%);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(240, 165, 0, 0.45);
+}
+
+.publish-pbi-btn:active:not(:disabled) {
+  transform: translateY(0);
+  box-shadow: 0 1px 4px rgba(240, 165, 0, 0.3);
+}
+
+.publish-pbi-btn:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* Spinner inside the publish button */
+.publish-spinner {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border: 2px solid rgba(255, 255, 255, 0.4);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: publish-spin 0.7s linear infinite;
+  flex-shrink: 0;
+}
+
+@keyframes publish-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Status message below the button */
+.publish-status-msg {
+  margin-top: 10px;
+  padding: 10px 14px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.5;
+  word-break: break-word;
+}
+
+.publish-success {
+  background: #ecfdf5;
+  color: #065f46;
+  border: 1px solid #6ee7b7;
+}
+
+.publish-error {
+  background: #fef2f2;
+  color: #991b1b;
+  border: 1px solid #fca5a5;
+}
+
 .summary-table-container {
   width: 100%;
   overflow-x: auto;
@@ -1320,3 +1400,249 @@ PAGE WRAP
 }
 .inline-export img { width: 16px; height: 16px; }
 .inline-export:hover { background: rgba(0,0,0,0.04); }
+
+/* ================= 3-DIV SUMMARY LAYOUT ================= */
+.summary-container {
+  display: flex;
+  gap: 20px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+
+.summary-div {
+  background: #fff;
+  padding: 16px;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  border: 1px solid #e0e0e0;
+}
+
+/* Pie-Chart Div */
+.pie-chart-div {
+  flex: 0 0 auto;
+  min-width: 400px;
+}
+
+/* LoadScript Div */
+.loadscript-div {
+  flex: 1;
+  min-width: 400px;
+  display: flex;
+  flex-direction: column;
+}
+
+.loadscript-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.loadscript-header h3 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: #1f1f1f;
+}
+
+.fetch-btn,
+.convert-btn {
+  padding: 15px 20px;
+  background: #0b3a66;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  white-space:nowrap;
+}
+
+.fetch-btn:hover:not(:disabled),
+.convert-btn:hover:not(:disabled) {
+  background: #0a2d52;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(11, 58, 102, 0.2);
+}
+
+.fetch-btn:disabled,
+.convert-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.error-message {
+  background: #fee;
+  color: #c33;
+  padding: 10px;
+  border-radius: 4px;
+  margin-bottom: 12px;
+  border-left: 4px solid #c33;
+  font-size: 13px;
+}
+
+.loadscript-displays {
+  display: flex;
+  gap: 12px;
+  flex: 1;
+  min-height: 300px;
+}
+
+.display-section {
+  flex: 1 1 50%;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  background: #f9f9f9;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  padding: 12px;
+  overflow: hidden;
+}
+
+.display-section h4 {
+  margin: 0 0 8px 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: #333;
+}
+
+.script-content {
+  flex: 1;
+  overflow: auto;
+  background: #fff;
+  border: 1px solid #ddd;
+  border-radius: 3px;
+  padding: 10px;
+  margin-bottom: 8px;
+  max-height: 400px;
+  min-height: 0;
+}
+
+.script-content pre {
+  margin: 0;
+  font-family: 'Courier New', monospace;
+  font-size: 12px;
+  color: #333;
+  white-space: pre-wrap;
+  word-break: break-word;
+  line-height: 1.4;
+}
+
+.empty-display {
+  color: #999;
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  text-align: center;
+  padding: 20px;
+}
+
+.loadscript-display .convert-btn {
+  width: 100%;
+  justify-content: center;
+}
+
+.mquery-display {
+  position: relative;
+}
+
+/* Responsive design */
+@media (max-width: 1400px) {
+  .summary-container {
+    flex-direction: column;
+  }
+
+  .pie-chart-div,
+  .loadscript-div {
+    min-width: auto;
+    width: 100%;
+  }
+
+  .loadscript-displays {
+    flex-direction: column;
+    min-height: auto;
+  }
+
+  .display-section {
+    min-height: 250px;
+  }
+
+  .script-content {
+    max-height: 300px;
+  }
+}
+
+/* ===== TAB STYLING ===== */
+.tab-button {
+  padding: 10px 20px;
+  border: none;
+  background-color: transparent;
+  color: #6b7280;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  border-radius: 6px 6px 0 0;
+  transition: all 0.3s ease;
+  border-bottom: 3px solid transparent;
+  position: relative;
+  bottom: -8px;
+}
+
+.tab-button:hover {
+  background-color: #f3f4f6;
+  color: #374151;
+}
+
+.tab-button.active {
+  background-color: #dbeafe;
+  color: #0b83f5;
+  border-bottom-color: #0b83f5;
+}
+
+.tabs-content {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  animation: fadeIn 0.2s ease-in-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.tab-content {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.summary-tab {
+  min-height: 500px;
+}
+
+.mquery-tab {
+  min-height: 500px;
+}
+
+.display-section .mquery-display{
+   
+    border: 2px solid #e0e0e0;
+    border-radius: 8px;
+    
+}

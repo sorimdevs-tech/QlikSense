@@ -385,12 +385,14 @@ const BASE_URL = import.meta.env.VITE_API_URL || "http://127.0.0.1:8000";
 
 // Convert FastAPI response → simple format
 const mapApps = (data: any[]) =>
-  data.map((a: any) => ({
-    id: a.attributes?.id,
-    name: a.attributes?.name,
-    lastModifiedDate:
-      a.attributes?.modifiedDate || a.attributes?.lastReloadTime,
-  }));
+  (data || [])
+    .map((a: any) => ({
+      id: a.attributes?.id || a.id,
+      name: a.attributes?.name || a.name,
+      lastModifiedDate:
+        a.attributes?.modifiedDate || a.attributes?.lastReloadTime || a.modifiedDate || a.lastReloadTime,
+    }))
+    .filter((a: any) => Boolean(a.id && a.name));
 
 // Test browser login
 export const testBrowserLogin = async (tenantUrl: string) => {
@@ -424,8 +426,17 @@ export const fetchApps = async (tenantUrl: string) => {
     params.tenant_url = tenantUrl;
   }
 
-  const res = await axios.get(`${BASE_URL}/applications`, { params });
-  return mapApps(res.data);
+  try {
+    const res = await axios.get(`${BASE_URL}/applications`, { params });
+    return mapApps(res.data || []);
+  } catch (error: any) {
+    const detail =
+      error?.response?.data?.detail ||
+      error?.response?.data?.message ||
+      error?.message ||
+      "Failed to fetch applications";
+    throw new Error(detail);
+  }
 };
 
 // Fetch tables
@@ -718,6 +729,121 @@ export const downloadMQuery = async (appId: string, tableName?: string) => {
   } catch (error: any) {
     console.error("❌ Failed to download M Query:", error);
     alert(`Error: ${error.message}\n\nCheck browser console for details.`);
+    throw error;
+  }
+};
+
+// ✅ FETCH LOADSCRIPT - Get Qlik LoadScript from app (filtered by table)
+export const fetchLoadScript = async (appId: string, tableName?: string) => {
+  try {
+    const BASE_URL = import.meta.env.VITE_API_URL || "http://127.0.0.1:8000";
+    
+    // Get credentials from sessionStorage
+    const apiKey = sessionStorage.getItem("qlik_api_key");
+    const tenantUrl = sessionStorage.getItem("tenant_url");
+    
+    console.log("📍 Fetching LoadScript for app:", appId, "table:", tableName);
+    console.log("   API Key available:", !!apiKey);
+    
+    let url = `${BASE_URL}/api/migration/fetch-loadscript?app_id=${encodeURIComponent(appId)}`;
+    if (tableName) {
+      url += `&table_name=${encodeURIComponent(tableName)}`;
+    }
+    if (apiKey) {
+      url += `&api_key=${encodeURIComponent(apiKey)}`;
+    }
+    if (tenantUrl) {
+      url += `&tenant_url=${encodeURIComponent(tenantUrl)}`;
+    }
+    
+    const response = await fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.detail || "Failed to fetch LoadScript");
+    }
+
+    const data = await response.json();
+    console.log("✅ LoadScript fetched successfully!", data);
+    return data;
+  } catch (error: any) {
+    console.error("❌ Failed to fetch LoadScript:", error);
+    throw error;
+  }
+};
+
+// ✅ PARSE LOADSCRIPT - Parse Qlik LoadScript
+export const parseLoadScript = async (loadscript: string) => {
+  try {
+    const BASE_URL = import.meta.env.VITE_API_URL || "http://127.0.0.1:8000";
+    
+    console.log("📍 Parsing LoadScript...");
+    
+    const url = `${BASE_URL}/api/migration/parse-loadscript?loadscript=${encodeURIComponent(loadscript)}`;
+    
+    const response = await fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.detail || "Failed to parse LoadScript");
+    }
+
+    const data = await response.json();
+    console.log("✅ LoadScript parsed successfully!", data);
+    return data;
+  } catch (error: any) {
+    console.error("❌ Failed to parse LoadScript:", error);
+    throw error;
+  }
+};
+
+// ✅ CONVERT TO MQUERY - Convert parsed Qlik LoadScript to M Query
+export const convertToMQuery = async (
+  parsedScriptJson: string,
+  tableName?: string,
+  basePath?: string
+) => {
+  try {
+    const BASE_URL = import.meta.env.VITE_API_URL || "http://127.0.0.1:8000";
+    
+    console.log("📍 Converting to M Query for table:", tableName, "with base_path:", basePath);
+    
+    let url = `${BASE_URL}/api/migration/convert-to-mquery?parsed_script_json=${encodeURIComponent(parsedScriptJson)}`;
+    if (tableName) {
+      url += `&table_name=${encodeURIComponent(tableName)}`;
+    }
+    // Pass SharePoint URL as base_path parameter (critical for SharePoint.Files() connector)
+    if (basePath && basePath.trim()) {
+      url += `&base_path=${encodeURIComponent(basePath.trim())}`;
+    }
+    
+    const response = await fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.detail || "Failed to convert to M Query");
+    }
+
+    const data = await response.json();
+    console.log("✅ Converted to M Query successfully!", data);
+    return data;
+  } catch (error: any) {
+    console.error("❌ Failed to convert to M Query:", error);
     throw error;
   }
 };

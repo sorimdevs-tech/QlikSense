@@ -242,6 +242,7 @@ export default function AppsPage() {
   const [apps, setApps] = useState<App[]>([]);
   const [tableCount, setTableCount] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
+  const [appsError, setAppsError] = useState<string | null>(null);
   const [favourites, setFavourites] = useState<string[]>([]);
   const [pageLoadTime, setPageLoadTime] = useState<string | null>(null);
 
@@ -268,6 +269,7 @@ export default function AppsPage() {
 
     fetchApps(tenantUrl)
       .then(async (appList) => {
+        setAppsError(null);
         setApps(appList || []);
 
         const counts: Record<string, number> = {};
@@ -284,8 +286,10 @@ export default function AppsPage() {
 
         setTableCount(counts);
       })
-      .catch(() => {
-        alert("Backend not connected");
+      .catch((err: any) => {
+        const message = err?.message || "Backend not connected";
+        setAppsError(message);
+        setApps([]);
       })
       .finally(() => {
         const elapsed = stopTimer?.("/apps");
@@ -368,6 +372,12 @@ export default function AppsPage() {
           </div>
         </div>
       </div>
+
+      {appsError && (
+        <div style={{ marginBottom: 12, color: "#b91c1c", fontWeight: 600 }}>
+          {appsError}
+        </div>
+      )}
 
       {/* APP CARDS */}
       <div className="card-container">

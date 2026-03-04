@@ -8,19 +8,25 @@ import { useWizard } from "../../context/WizardContext";
 
 export default function ConnectPage() {
   const [url, setUrl] = useState("");
+  const [apiKey, setApiKey] = useState("");
   const [connectAsUser, setConnectAsUser] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
   const navigate = useNavigate();
 
-  // ✅ Restore URL + checkbox ONLY for current browser session
+  // ✅ Restore URL + API Key + checkbox ONLY for current browser session
   useEffect(() => {
     const savedUrl = sessionStorage.getItem("tenant_url");
+    const savedApiKey = sessionStorage.getItem("qlik_api_key");
     const savedConnectAsUser = sessionStorage.getItem("connect_as_user");
 
     if (savedUrl) {
       setUrl(savedUrl);
+    }
+    
+    if (savedApiKey) {
+      setApiKey(savedApiKey);
     }
 
     if (savedConnectAsUser === "true") {
@@ -68,6 +74,9 @@ export default function ConnectPage() {
       // Save for this browser session
       sessionStorage.setItem("tenant_url", url);
       sessionStorage.setItem("connected", "true");
+      if (apiKey.trim()) {
+        sessionStorage.setItem("qlik_api_key", apiKey.trim());
+      }
 
       // Navigate to apps page
       startTimer?.("/apps");
@@ -126,6 +135,23 @@ export default function ConnectPage() {
             .qlikcloud.com
           </p>
         )}
+
+        {/* <label htmlFor="qlik-api-key">
+          Qlik API Key <span style={{ color: "#999", fontSize: "12px" }}>(Optional - needed for LoadScript)</span>
+        </label>
+
+        <input
+          id="qlik-api-key"
+          type="password"
+          placeholder="Paste your Qlik API Key here"
+          value={apiKey}
+          onChange={(e) => {
+            setApiKey(e.target.value);
+            setError("");
+          }}
+          disabled={loading}
+          title="Generate from: Qlik Cloud Console → Admin → API Keys"
+        /> */}
 
         <label className="checkbox">
           <input

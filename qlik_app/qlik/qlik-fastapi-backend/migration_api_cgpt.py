@@ -1,4 +1,4 @@
-﻿"""
+"""
 Migration API -- FastAPI router for the 6-stage Qlik-to-Power BI pipeline.
 
 Endpoints:
@@ -818,24 +818,7 @@ async def publish_mquery_endpoint(
         from pbit_generator import parse_combined_mquery
         if combined_m.strip():
             tables_m = parse_combined_mquery(combined_m)
-            # Enrich with field metadata from loadscript if available
-            if raw_script:
-                try:
-                    from loadscript_parser import LoadScriptParser
-                    from mquery_converter import MQueryConverter
-                    parse_result  = LoadScriptParser(raw_script).parse()
-                    raw_tables    = parse_result.get("details", {}).get("tables", [])
-                    all_converted = MQueryConverter().convert_all(raw_tables)
-                    fields_by_name = {t["name"]: t.get("fields", []) for t in all_converted}
-                    for t in tables_m:
-                        if not t.get("fields"):
-                            t["fields"] = fields_by_name.get(t["name"], [])
-                except Exception as enrich_exc:
-                    logger.warning("[publish_mquery] Field enrichment failed: %s", enrich_exc)
-            QLIK_SYSTEM_PREFIXES = ("__city", "__geo", "__key", "AutoCalendar", "MasterCalendar")
-            before = len(tables_m)
-            tables_m = [t for t in tables_m if not t["name"].startswith(QLIK_SYSTEM_PREFIXES)]
-            logger.info("[publish_mquery] Parsed combined M Query: %d tables (%d system tables filtered)", len(tables_m), before - len(tables_m))
+            logger.info("[publish_mquery] Parsed combined M Query: %d tables", len(tables_m))
         else:
             from loadscript_parser import LoadScriptParser
             from mquery_converter import MQueryConverter
@@ -844,12 +827,8 @@ async def publish_mquery_endpoint(
             converter    = MQueryConverter()
             all_converted = converter.convert_all(raw_tables, base_path="[DataSourcePath]")
             tables_m = [{"name": t["name"], "source_type": t["source_type"],
-                         "m_expression": t["m_expression"],
-                         "fields": t.get("fields", [])} for t in all_converted]
-            QLIK_SYSTEM_PREFIXES = ("__city", "__geo", "__key", "AutoCalendar", "MasterCalendar")
-            before = len(tables_m)
-            tables_m = [t for t in tables_m if not t["name"].startswith(QLIK_SYSTEM_PREFIXES)]
-            logger.info("[publish_mquery] Converted LoadScript: %d tables (%d system tables filtered)", len(tables_m), before - len(tables_m))
+                         "m_expression": t["m_expression"]} for t in all_converted]
+            logger.info("[publish_mquery] Converted LoadScript: %d tables", len(tables_m))
     except Exception as exc:
         raise HTTPException(status_code=500, detail=f"Script parse/convert error: {exc}")
 

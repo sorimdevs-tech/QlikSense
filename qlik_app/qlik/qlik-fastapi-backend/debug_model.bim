@@ -1,0 +1,672 @@
+{
+  "name": "Vehicle_Fact_MASTER",
+  "compatibilityLevel": 1550,
+  "model": {
+    "culture": "en-US",
+    "dataAccessOptions": {
+      "legacyRedirects": true,
+      "returnErrorValuesAsNull": true
+    },
+    "defaultPowerBIDataSourceVersion": "powerBI_V3",
+    "sourceQueryCulture": "en-US",
+    "tables": [
+      {
+        "name": "Vehicle_Fact_MASTER",
+        "columns": [
+          {
+            "name": "VIN",
+            "dataType": "string",
+            "sourceColumn": "VIN",
+            "summarizeBy": "none",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ]
+          },
+          {
+            "name": "ModelName",
+            "dataType": "string",
+            "sourceColumn": "ModelName",
+            "summarizeBy": "none",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ]
+          },
+          {
+            "name": "VariantName",
+            "dataType": "string",
+            "sourceColumn": "VariantName",
+            "summarizeBy": "none",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ]
+          },
+          {
+            "name": "FuelType",
+            "dataType": "string",
+            "sourceColumn": "FuelType",
+            "summarizeBy": "none",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ]
+          },
+          {
+            "name": "VehicleChannel",
+            "dataType": "string",
+            "sourceColumn": "VehicleChannel",
+            "summarizeBy": "none",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ]
+          },
+          {
+            "name": "ManufactureYear",
+            "dataType": "int64",
+            "sourceColumn": "ManufactureYear",
+            "summarizeBy": "none",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ]
+          },
+          {
+            "name": "SalePrice",
+            "dataType": "double",
+            "sourceColumn": "SalePrice",
+            "summarizeBy": "none",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ]
+          },
+          {
+            "name": "ServiceDate",
+            "dataType": "dateTime",
+            "sourceColumn": "ServiceDate",
+            "summarizeBy": "none",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ]
+          },
+          {
+            "name": "ServiceType",
+            "dataType": "string",
+            "sourceColumn": "ServiceType",
+            "summarizeBy": "none",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ]
+          },
+          {
+            "name": "ServiceCost",
+            "dataType": "double",
+            "sourceColumn": "ServiceCost",
+            "summarizeBy": "none",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ]
+          }
+        ],
+        "partitions": [
+          {
+            "name": "Vehicle_Fact_MASTER-Partition",
+            "mode": "import",
+            "source": {
+              "type": "m",
+              "expression": [
+                "let",
+                "    Source = SharePoint.Files(",
+                "        \"https://sorimtechnologies.sharepoint.com/sites/ddrive\",",
+                "        [ApiVersion = 15]",
+                "    ),",
+                "    FilteredFile = Table.SelectRows(",
+                "        Source,",
+                "        each Text.Contains([#\"Folder Path\"], \"CSVFilesDatas\")",
+                "             and Text.Lower([Name]) = Text.Lower(\"Vehicle_Fact_MASTER.csv\")",
+                "    ),",
+                "    FileBinary = FilteredFile{0}[Content],",
+                "    CsvData = Csv.Document(",
+                "        FileBinary,",
+                "        [Delimiter=\",\", Encoding=65001, QuoteStyle=QuoteStyle.Csv]",
+                "    ),",
+                "    PromotedHeaders = Table.PromoteHeaders(CsvData, [PromoteAllScalars=true]),",
+                "    TypedTable = Table.TransformColumnTypes(",
+                "        PromotedHeaders,",
+                "        {",
+                "        {\"VIN\", type text},",
+                "        {\"ModelName\", type text},",
+                "        {\"VariantName\", type text},",
+                "        {\"FuelType\", type text},",
+                "        {\"VehicleChannel\", type text},",
+                "        {\"ManufactureYear\", type text},",
+                "        {\"SalePrice\", type text},",
+                "        {\"ServiceDate\", type text},",
+                "        {\"ServiceType\", type text},",
+                "        {\"ServiceCost\", type text}",
+                "        }",
+                "    )",
+                "in",
+                "    TypedTable"
+              ]
+            }
+          }
+        ]
+      },
+      {
+        "name": "Dealer_Master",
+        "columns": [
+          {
+            "name": "DealerID-ServiceID",
+            "dataType": "string",
+            "sourceColumn": "DealerID-ServiceID",
+            "summarizeBy": "none",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ]
+          },
+          {
+            "name": "DealerName",
+            "dataType": "string",
+            "sourceColumn": "DealerName",
+            "summarizeBy": "none",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ]
+          },
+          {
+            "name": "City",
+            "dataType": "string",
+            "sourceColumn": "City",
+            "summarizeBy": "none",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ]
+          },
+          {
+            "name": "Phone",
+            "dataType": "string",
+            "sourceColumn": "Phone",
+            "summarizeBy": "none",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ]
+          },
+          {
+            "name": "Email",
+            "dataType": "string",
+            "sourceColumn": "Email",
+            "summarizeBy": "none",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ]
+          },
+          {
+            "name": "City_GeoInfo",
+            "dataType": "string",
+            "sourceColumn": "City_GeoInfo",
+            "summarizeBy": "none",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ]
+          }
+        ],
+        "partitions": [
+          {
+            "name": "Dealer_Master-Partition",
+            "mode": "import",
+            "source": {
+              "type": "m",
+              "expression": [
+                "let",
+                "    Source = SharePoint.Files(",
+                "        \"https://sorimtechnologies.sharepoint.com/sites/ddrive\",",
+                "        [ApiVersion = 15]",
+                "    ),",
+                "    FilteredFile = Table.SelectRows(",
+                "        Source,",
+                "        each Text.Contains([#\"Folder Path\"], \"CSVFilesDatas\")",
+                "             and Text.Lower([Name]) = Text.Lower(\"Dealer_Master.csv\")",
+                "    ),",
+                "    FileBinary = FilteredFile{0}[Content],",
+                "    CsvData = Csv.Document(",
+                "        FileBinary,",
+                "        [Delimiter=\",\", Encoding=65001, QuoteStyle=QuoteStyle.Csv]",
+                "    ),",
+                "    PromotedHeaders = Table.PromoteHeaders(CsvData, [PromoteAllScalars=true]),",
+                "    TypedTable = Table.TransformColumnTypes(",
+                "        PromotedHeaders,",
+                "        {",
+                "        {\"DealerID-ServiceID\", type text},",
+                "        {\"DealerName\", type text},",
+                "        {\"City\", type text},",
+                "        {\"Phone\", type text},",
+                "        {\"Email\", type text},",
+                "        {\"City_GeoInfo\", type text}",
+                "        }",
+                "    )",
+                "in",
+                "    TypedTable"
+              ]
+            }
+          }
+        ]
+      },
+      {
+        "name": "Model_Master",
+        "columns": [
+          {
+            "name": "ModelID",
+            "dataType": "string",
+            "sourceColumn": "ModelID",
+            "summarizeBy": "none",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ]
+          },
+          {
+            "name": "ModelName",
+            "dataType": "string",
+            "sourceColumn": "ModelName",
+            "summarizeBy": "none",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ]
+          }
+        ],
+        "partitions": [
+          {
+            "name": "Model_Master-Partition",
+            "mode": "import",
+            "source": {
+              "type": "m",
+              "expression": [
+                "let",
+                "    Source = SharePoint.Files(",
+                "        \"https://sorimtechnologies.sharepoint.com/sites/ddrive\",",
+                "        [ApiVersion = 15]",
+                "    ),",
+                "    FilteredFile = Table.SelectRows(",
+                "        Source,",
+                "        each Text.Contains([#\"Folder Path\"], \"CSVFilesDatas\")",
+                "             and Text.Lower([Name]) = Text.Lower(\"Model_Master.csv\")",
+                "    ),",
+                "    FileBinary = FilteredFile{0}[Content],",
+                "    CsvData = Csv.Document(",
+                "        FileBinary,",
+                "        [Delimiter=\",\", Encoding=65001, QuoteStyle=QuoteStyle.Csv]",
+                "    ),",
+                "    PromotedHeaders = Table.PromoteHeaders(CsvData, [PromoteAllScalars=true]),",
+                "    TypedTable = Table.TransformColumnTypes(",
+                "        PromotedHeaders,",
+                "        {",
+                "        {\"ModelID\", type text},",
+                "        {\"ModelName\", type text}",
+                "        }",
+                "    )",
+                "in",
+                "    TypedTable"
+              ]
+            }
+          }
+        ]
+      },
+      {
+        "name": "Service_History",
+        "columns": [
+          {
+            "name": "DealerID-ServiceID",
+            "dataType": "string",
+            "sourceColumn": "DealerID-ServiceID",
+            "summarizeBy": "none",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ]
+          },
+          {
+            "name": "VehicleID",
+            "dataType": "string",
+            "sourceColumn": "VehicleID",
+            "summarizeBy": "none",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ]
+          },
+          {
+            "name": "ServiceDate",
+            "dataType": "dateTime",
+            "sourceColumn": "ServiceDate",
+            "summarizeBy": "none",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ]
+          },
+          {
+            "name": "ServiceType",
+            "dataType": "string",
+            "sourceColumn": "ServiceType",
+            "summarizeBy": "none",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ]
+          },
+          {
+            "name": "ServiceCost",
+            "dataType": "double",
+            "sourceColumn": "ServiceCost",
+            "summarizeBy": "none",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ]
+          }
+        ],
+        "partitions": [
+          {
+            "name": "Service_History-Partition",
+            "mode": "import",
+            "source": {
+              "type": "m",
+              "expression": [
+                "let",
+                "    Source = SharePoint.Files(",
+                "        \"https://sorimtechnologies.sharepoint.com/sites/ddrive\",",
+                "        [ApiVersion = 15]",
+                "    ),",
+                "    FilteredFile = Table.SelectRows(",
+                "        Source,",
+                "        each Text.Contains([#\"Folder Path\"], \"CSVFilesDatas\")",
+                "             and Text.Lower([Name]) = Text.Lower(\"Service_History.csv\")",
+                "    ),",
+                "    FileBinary = FilteredFile{0}[Content],",
+                "    CsvData = Csv.Document(",
+                "        FileBinary,",
+                "        [Delimiter=\",\", Encoding=65001, QuoteStyle=QuoteStyle.Csv]",
+                "    ),",
+                "    PromotedHeaders = Table.PromoteHeaders(CsvData, [PromoteAllScalars=true]),",
+                "    TypedTable = Table.TransformColumnTypes(",
+                "        PromotedHeaders,",
+                "        {",
+                "        {\"DealerID-ServiceID\", type text},",
+                "        {\"VehicleID\", type text},",
+                "        {\"ServiceDate\", type text},",
+                "        {\"ServiceType\", type text},",
+                "        {\"ServiceCost\", type text}",
+                "        }",
+                "    )",
+                "in",
+                "    TypedTable"
+              ]
+            }
+          }
+        ]
+      },
+      {
+        "name": "Variant_Master",
+        "columns": [
+          {
+            "name": "VariantID",
+            "dataType": "string",
+            "sourceColumn": "VariantID",
+            "summarizeBy": "none",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ]
+          },
+          {
+            "name": "ModelID",
+            "dataType": "string",
+            "sourceColumn": "ModelID",
+            "summarizeBy": "none",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ]
+          },
+          {
+            "name": "VariantName",
+            "dataType": "string",
+            "sourceColumn": "VariantName",
+            "summarizeBy": "none",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ]
+          }
+        ],
+        "partitions": [
+          {
+            "name": "Variant_Master-Partition",
+            "mode": "import",
+            "source": {
+              "type": "m",
+              "expression": [
+                "let",
+                "    Source = SharePoint.Files(",
+                "        \"https://sorimtechnologies.sharepoint.com/sites/ddrive\",",
+                "        [ApiVersion = 15]",
+                "    ),",
+                "    FilteredFile = Table.SelectRows(",
+                "        Source,",
+                "        each Text.Contains([#\"Folder Path\"], \"CSVFilesDatas\")",
+                "             and Text.Lower([Name]) = Text.Lower(\"Variant_Master.csv\")",
+                "    ),",
+                "    FileBinary = FilteredFile{0}[Content],",
+                "    CsvData = Csv.Document(",
+                "        FileBinary,",
+                "        [Delimiter=\",\", Encoding=65001, QuoteStyle=QuoteStyle.Csv]",
+                "    ),",
+                "    PromotedHeaders = Table.PromoteHeaders(CsvData, [PromoteAllScalars=true]),",
+                "    TypedTable = Table.TransformColumnTypes(",
+                "        PromotedHeaders,",
+                "        {",
+                "        {\"VariantID\", type text},",
+                "        {\"ModelID\", type text},",
+                "        {\"VariantName\", type text}",
+                "        }",
+                "    )",
+                "in",
+                "    TypedTable"
+              ]
+            }
+          }
+        ]
+      },
+      {
+        "name": "VIN_Details",
+        "columns": [
+          {
+            "name": "VIN",
+            "dataType": "string",
+            "sourceColumn": "VIN",
+            "summarizeBy": "none",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ]
+          },
+          {
+            "name": "EngineNumber",
+            "dataType": "string",
+            "sourceColumn": "EngineNumber",
+            "summarizeBy": "none",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ]
+          },
+          {
+            "name": "ChassisNumber",
+            "dataType": "string",
+            "sourceColumn": "ChassisNumber",
+            "summarizeBy": "none",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ]
+          },
+          {
+            "name": "ProductionPlant",
+            "dataType": "string",
+            "sourceColumn": "ProductionPlant",
+            "summarizeBy": "none",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ]
+          },
+          {
+            "name": "ProductionDate",
+            "dataType": "dateTime",
+            "sourceColumn": "ProductionDate",
+            "summarizeBy": "none",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ]
+          }
+        ],
+        "partitions": [
+          {
+            "name": "VIN_Details-Partition",
+            "mode": "import",
+            "source": {
+              "type": "m",
+              "expression": [
+                "let",
+                "    Source = SharePoint.Files(",
+                "        \"https://sorimtechnologies.sharepoint.com/sites/ddrive\",",
+                "        [ApiVersion = 15]",
+                "    ),",
+                "    FilteredFile = Table.SelectRows(",
+                "        Source,",
+                "        each Text.Contains([#\"Folder Path\"], \"CSVFilesDatas\")",
+                "             and Text.Lower([Name]) = Text.Lower(\"VIN_Details.csv\")",
+                "    ),",
+                "    FileBinary = FilteredFile{0}[Content],",
+                "    CsvData = Csv.Document(",
+                "        FileBinary,",
+                "        [Delimiter=\",\", Encoding=65001, QuoteStyle=QuoteStyle.Csv]",
+                "    ),",
+                "    PromotedHeaders = Table.PromoteHeaders(CsvData, [PromoteAllScalars=true]),",
+                "    TypedTable = Table.TransformColumnTypes(",
+                "        PromotedHeaders,",
+                "        {",
+                "        {\"VIN\", type text},",
+                "        {\"EngineNumber\", type text},",
+                "        {\"ChassisNumber\", type text},",
+                "        {\"ProductionPlant\", type text},",
+                "        {\"ProductionDate\", type text}",
+                "        }",
+                "    )",
+                "in",
+                "    TypedTable"
+              ]
+            }
+          }
+        ]
+      }
+    ],
+    "relationships": [],
+    "expressions": [
+      {
+        "name": "DataSourcePath",
+        "kind": "m",
+        "expression": [
+          "\"https://sorimtechnologies.sharepoint.com/sites/ddrive\""
+        ]
+      }
+    ],
+    "annotations": [
+      {
+        "name": "PBIDesktopVersion",
+        "value": "2.130.930.0"
+      },
+      {
+        "name": "createdBy",
+        "value": "QlikAI_Accelerator"
+      }
+    ]
+  }
+}
