@@ -27,13 +27,6 @@ from typing import Dict, Any, List, Optional
 
 logger = logging.getLogger(__name__)
 
-# RelationshipExtractor lives alongside this module
-try:
-    from relationship_extractor import RelationshipExtractor
-    _HAS_REL_EXTRACTOR = True
-except ImportError:
-    _HAS_REL_EXTRACTOR = False
-
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Constants
@@ -124,15 +117,6 @@ class SimpleMQueryGenerator:
         if not self.tables:
             return self._empty_query("No tables found in LoadScript")
 
-        # Build relationship comment blocks once (keyed by table name)
-        rel_comments: Dict[str, str] = {}
-        if _HAS_REL_EXTRACTOR:
-            try:
-                extractor = RelationshipExtractor(self.tables)
-                rel_comments = extractor.to_m_query_comment_block()
-            except Exception as e:
-                logger.warning("Relationship extraction failed: %s", e)
-
         if self.selected_table:
             logger.info("Single-table mode: %s", self.selected_table)
             match = [
@@ -143,17 +127,12 @@ class SimpleMQueryGenerator:
                 return self._empty_query(
                     'Table "%s" not found' % self.selected_table
                 )
-            table = match[0]
-            comment = rel_comments.get(table["name"], "")
-            return comment + self._build_table_query(table)
+            return self._build_table_query(match[0])
 
         # Multi-table – one named block per table
         output: List[str] = []
         for table in self.tables:
             output.append("// ===== TABLE: %s =====" % table["name"])
-            comment = rel_comments.get(table["name"], "")
-            if comment:
-                output.append(comment)
             output.append(self._build_table_query(table))
             output.append("")
         return "\n".join(output)

@@ -1,306 +1,238 @@
 """
-STAGE 1: Qlik Cloud API - Extract Metadata
+stage1_qlik_extractor.py
+─────────────────────────
+Stage 1 of the 6-stage pipeline: Extract table definitions from a Qlik app.
 
-Extracts:
-- Tables
-- Fields with data types
-- Key flags
-- Associations
+Replaces / wraps the Qlik Cloud API call in SixStageOrchestrator._stage_1_extract().
+
+Two extraction paths:
+  A) Qlik Cloud REST API  — fetches the live script from a Qlik Sense SaaS app
+  B) Local script text    — parses a raw .qvs / .txt load script directly
+
+After extraction, the raw Qlik script is:
+  1. Parsed  by QlikScriptParser → list of table dicts (source_type, fields, …)
+  2. Converted by MQueryConverter → M expressions per table
+  3. Merged into the table dicts so the BIM builder can use real M code
+
+Usage in SixStageOrchestrator:
+
+    from stage1_qlik_extractor import extract_tables_from_app, extract_tables_from_script
+
+    # Via Qlik Cloud:
+    tables = extract_tables_from_app(app_id, qlik_token, qlik_tenant_url)
+
+    # Via raw script:
+    tables = extract_tables_from_script(script_text, base_path="C:/Data")
 """
 
-import requests
+from __future__ import annotations
+
 import logging
-from typing import Dict, List, Any, Optional
 import os
-from urllib.parse import urlparse
-from dotenv import load_dotenv
+import re
+from typing import Any, Dict, List, Optional
+
+import requests
+
+from qlik_script_parser import parse_qlik_script
+from mquery_converter import convert_to_mquery
 
 logger = logging.getLogger(__name__)
 
-# Load .env from backend folder explicitly so stage-1 works regardless of import order
-ENV_PATH = os.path.join(os.path.dirname(__file__), ".env")
-load_dotenv(dotenv_path=ENV_PATH)
+# Qlik Cloud tenant URL from env (e.g. https://your-tenant.us.qlikcloud.com)
+QLIK_TENANT_URL = os.getenv("QLIK_TENANT_URL", "").rstrip("/")
+QLIK_API_KEY    = os.getenv("QLIK_API_KEY", "")
 
 
-class QlikMetadataExtractor:
-    """Extract metadata from Qlik Cloud via REST API"""
-    
-    def __init__(self, api_key: Optional[str] = None, tenant: Optional[str] = None):
-        # Accept either explicit key, QLIK_API_KEY, or legacy API_KEY
-        self.api_key = (api_key or os.getenv("QLIK_API_KEY") or os.getenv("API_KEY") or "").strip()
+# ─────────────────────────────────────────────────────────────────────────────
+# Public API
+# ─────────────────────────────────────────────────────────────────────────────
 
-        # Resolve tenant from multiple env styles:
-        # - QLIK_TENANT_URL=https://xxx.qlikcloud.com
-        # - QLIK_TENANT=xxx
-        tenant_source = (
-            tenant
-            or os.getenv("QLIK_TENANT_URL")
-            or os.getenv("QLIK_TENANT")
-            or ""
-        ).strip()
+def extract_tables_from_app(
+    app_id: str,
+    api_key: Optional[str] = None,
+    tenant_url: Optional[str] = None,
+    base_path: str = "[DataSourcePath]",
+    connection_string: Optional[str] = None,
+) -> Dict[str, Any]:
+    """
+    Fetch the load script from Qlik Cloud and extract + convert table definitions.
 
-        if tenant_source.startswith("http://") or tenant_source.startswith("https://"):
-            parsed = urlparse(tenant_source)
-            tenant_host = parsed.netloc
-        elif "." in tenant_source:
-            tenant_host = tenant_source
-        elif tenant_source:
-            tenant_host = f"{tenant_source}.qlikcloud.com"
-        else:
-            tenant_host = ""
+    Returns:
+        {
+          "success": bool,
+          "app_name": str,
+          "tables": [ table_dict, … ],   # enriched with m_expression
+          "error": str | None,
+        }
+    """
+    key  = api_key    or QLIK_API_KEY
+    base = tenant_url or QLIK_TENANT_URL
 
-        self.tenant = tenant_host
-        self.base_url = (
-            (os.getenv("QLIK_API_BASE_URL") or "").strip()
-            or (f"https://{tenant_host}/api/v1" if tenant_host else "")
+    if not key or not base:
+        return {
+            "success": False,
+            "error":   "QLIK_TENANT_URL and QLIK_API_KEY must be set in .env or passed explicitly.",
+        }
+
+    # 1. Get app metadata
+    app_name = _fetch_app_name(app_id, key, base)
+
+    # 2. Fetch the load script
+    script, err = _fetch_load_script(app_id, key, base)
+    if err:
+        return {"success": False, "error": err, "app_name": app_name}
+
+    # 3. Parse + convert
+    tables = _parse_and_convert(script, base_path, connection_string)
+
+    logger.info(
+        "[Stage1] App '%s' (%s): %d table(s) extracted", app_name, app_id, len(tables)
+    )
+    return {
+        "success":  True,
+        "app_id":   app_id,
+        "app_name": app_name,
+        "tables":   tables,
+    }
+
+
+def extract_tables_from_script(
+    script_text: str,
+    base_path: str = "[DataSourcePath]",
+    connection_string: Optional[str] = None,
+    app_name: str = "LocalScript",
+) -> Dict[str, Any]:
+    """
+    Parse a raw Qlik load script string and return table definitions with M expressions.
+    Useful for local / offline conversion without a Qlik Cloud connection.
+    """
+    tables = _parse_and_convert(script_text, base_path, connection_string)
+    return {
+        "success":  True,
+        "app_name": app_name,
+        "tables":   tables,
+    }
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Internal helpers
+# ─────────────────────────────────────────────────────────────────────────────
+
+def _fetch_app_name(app_id: str, api_key: str, base_url: str) -> str:
+    try:
+        resp = requests.get(
+            f"{base_url}/api/v1/apps/{app_id}",
+            headers={"Authorization": f"Bearer {api_key}"},
+            timeout=10,
+        )
+        if resp.ok:
+            return resp.json().get("attributes", {}).get("name", app_id)
+    except Exception as e:
+        logger.warning("[Stage1] Could not fetch app name: %s", e)
+    return app_id
+
+
+def _fetch_load_script(
+    app_id: str, api_key: str, base_url: str
+) -> tuple[str, Optional[str]]:
+    """
+    Fetch the QlikSense load script via:
+      GET /api/v1/apps/{appId}/script
+    Returns (script_text, error_message_or_None).
+    """
+    url = f"{base_url}/api/v1/apps/{app_id}/script"
+    try:
+        resp = requests.get(
+            url,
+            headers={
+                "Authorization": f"Bearer {api_key}",
+                "Accept": "application/json",
+            },
+            timeout=30,
+        )
+        if resp.ok:
+            data = resp.json()
+            # Qlik Cloud returns either {"script": "..."} or a list of script sections
+            if isinstance(data, dict) and "script" in data:
+                return data["script"], None
+            if isinstance(data, list):
+                # Multiple sections — join them
+                sections = [s.get("script", "") for s in data if isinstance(s, dict)]
+                return "\n\n".join(sections), None
+            return str(data), None
+        return "", f"Qlik API returned {resp.status_code}: {resp.text[:300]}"
+    except Exception as e:
+        return "", f"Request error fetching script: {e}"
+
+
+def _parse_and_convert(
+    script: str,
+    base_path: str,
+    connection_string: Optional[str],
+) -> List[Dict[str, Any]]:
+    """
+    Run QlikScriptParser → MQueryConverter and merge results.
+
+    Each returned dict has the standard table shape expected by the BIM builder
+    PLUS an `m_expression` key with ready-to-use Power Query M code.
+    """
+    parsed    = parse_qlik_script(script)
+    converted = convert_to_mquery(parsed, base_path, connection_string)
+
+    # Merge: add m_expression + conversion notes back into the parsed dicts
+    name_to_conv = {c["name"]: c for c in converted}
+    result = []
+    for table in parsed:
+        name  = table["name"]
+        conv  = name_to_conv.get(name, {})
+        merged = {
+            **table,
+            "m_expression": conv.get("m_expression", ""),
+            "conversion_notes": conv.get("notes", ""),
+        }
+        result.append(merged)
+
+    return result
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# BIM partition builder  (used by powerbi_xmla_connector._build_bim)
+# ─────────────────────────────────────────────────────────────────────────────
+
+def build_partition_from_table(table: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Build the BIM partition dict for a table that has an m_expression.
+    Falls back to an empty typed table if no M expression is available.
+    """
+    name    = table["name"]
+    m_expr  = table.get("m_expression", "")
+    fields  = table.get("fields", [])
+
+    if not m_expr:
+        # Fallback: schema-only empty table
+        type_defs = ", ".join(
+            f"{_col_name_for_m(f.get('alias') or f['name'])} = type text"
+            for f in fields if f.get("name") not in ("*", "")
+        ) or "Column1 = type text"
+        m_expr = (
+            "let\n"
+            f"    Source = #table(type table [{type_defs}], {{}})\n"
+            "in\n"
+            "    Source"
         )
 
-        if not self.api_key:
-            logger.warning("QLIK_API_KEY/API_KEY not configured. Stage 1 extraction may fail.")
-        if not self.base_url:
-            logger.warning("QLIK tenant URL not configured. Set QLIK_TENANT_URL or QLIK_API_BASE_URL.")
+    return {
+        "name": f"{name}_Partition",
+        "mode": "import",
+        "source": {
+            "type":       "m",
+            "expression": m_expr,
+        },
+    }
 
-        self.headers = {
-            "Authorization": f"Bearer {self.api_key}",
-            "Content-Type": "application/json"
-        }
-        self.last_extraction_method = "unknown"
-    
-    def extract_metadata(self, app_id: str) -> Dict[str, Any]:
-        """
-        Extract complete metadata from Qlik app
-        
-        Returns:
-        {
-            "app_id": "app_123",
-            "app_name": "Sales App",
-            "tables": [
-                {
-                    "name": "Sales",
-                    "fields": [
-                        {"name": "OrderID", "type": "integer", "is_key": true},
-                        {"name": "CustomerID", "type": "integer", "is_key": false}
-                    ]
-                }
-            ]
-        }
-        """
-        try:
-            app_id = (app_id or "").strip()
-            if not app_id:
-                return {"success": False, "error": "App ID is required"}
-            if not self.base_url or not self.api_key:
-                return {
-                    "success": False,
-                    "error": "Qlik configuration missing: check QLIK_API_KEY and QLIK_TENANT_URL/QLIK_API_BASE_URL",
-                }
 
-            logger.info(f"[STAGE 1] Extracting metadata from Qlik app: {app_id}")
-            
-            # Get app info
-            app_info = self._get_app_info(app_id)
-            if not app_info:
-                return {"success": False, "error": "App not found or inaccessible"}
-            if app_info.get("__error__"):
-                return {"success": False, "error": app_info.get("__error__")}
-            
-            # Get tables/sheets
-            tables = self._extract_tables(app_id)
-            if not tables:
-                return {
-                    "success": False,
-                    "error": (
-                        "No tables found in app metadata. "
-                        "Verify app has loaded tables and API key has access."
-                    ),
-                    "app_id": app_id,
-                    "app_name": app_info.get("name"),
-                    "tables": [],
-                }
-            
-            return {
-                "success": True,
-                "app_id": app_id,
-                "app_name": app_info.get("name"),
-                "tables": tables,
-                "extraction_method": self.last_extraction_method
-            }
-            
-        except Exception as e:
-            logger.error(f"Metadata extraction failed: {str(e)}")
-            return {"success": False, "error": str(e)}
-    
-    def _get_app_info(self, app_id: str) -> Dict[str, Any]:
-        """Get basic app information"""
-        try:
-            url = f"{self.base_url}/apps/{app_id}"
-            response = requests.get(url, headers=self.headers, timeout=10)
-            response.raise_for_status()
-            return response.json()
-        except Exception as e:
-            status_code = None
-            response_text = ""
-            if hasattr(e, "response") and e.response is not None:
-                status_code = e.response.status_code
-                response_text = e.response.text[:400]
-
-            detail = f"Failed to get app info for app_id={app_id}"
-            if status_code:
-                detail += f" (HTTP {status_code})"
-            if response_text:
-                detail += f": {response_text}"
-            else:
-                detail += f": {str(e)}"
-
-            logger.error(detail)
-            return {"__error__": detail}
-    
-    def _extract_tables(self, app_id: str) -> List[Dict[str, Any]]:
-        """Extract tables and fields from app (WebSocket first, REST fallback)."""
-        # Primary path: WebSocket model extraction (most reliable for real table metadata)
-        ws_tables = self._extract_tables_via_websocket(app_id)
-        if ws_tables:
-            self.last_extraction_method = "Qlik WebSocket Engine API"
-            return ws_tables
-
-        # Fallback path: REST items metadata
-        rest_tables = self._extract_tables_via_items(app_id)
-        if rest_tables:
-            self.last_extraction_method = "Qlik Cloud REST Items API"
-            return rest_tables
-
-        self.last_extraction_method = "none"
-        return []
-
-    def _extract_tables_via_websocket(self, app_id: str) -> List[Dict[str, Any]]:
-        """Use existing websocket client to fetch real data model tables."""
-        try:
-            from qlik_websocket_client import QlikWebSocketClient
-
-            ws_client = QlikWebSocketClient()
-            result = ws_client.get_app_tables_simple(app_id)
-            if not result.get("success", False):
-                logger.warning(f"WebSocket extraction failed: {result.get('error')}")
-                return []
-
-            raw_tables = result.get("tables", []) or []
-            normalized_tables: List[Dict[str, Any]] = []
-
-            for t in raw_tables:
-                table_name = t.get("name") or "Unknown"
-                raw_fields = t.get("fields", []) or []
-                fields: List[Dict[str, Any]] = []
-
-                for f in raw_fields:
-                    field_name = (f.get("name") or "").strip()
-                    if not field_name:
-                        continue
-                    if f.get("is_system", False):
-                        continue
-
-                    fields.append({
-                        "name": field_name,
-                        "type": self._infer_field_type_from_tags(f.get("tags", [])),
-                        "is_key": bool(f.get("is_key", False)),
-                    })
-
-                if fields:
-                    normalized_tables.append({
-                        "name": table_name,
-                        "fields": fields,
-                        "field_count": len(fields),
-                        "no_of_rows": t.get("no_of_rows", 0),
-                    })
-
-            logger.info(f"[STAGE 1] WebSocket extracted {len(normalized_tables)} tables")
-            return normalized_tables
-
-        except Exception as e:
-            logger.warning(f"WebSocket table extraction unavailable: {str(e)}")
-            return []
-
-    def _extract_tables_via_items(self, app_id: str) -> List[Dict[str, Any]]:
-        """Fallback: extract tables from item definitions (may be limited)."""
-        try:
-            # Get all items (sheets, visualizations)
-            url = f"{self.base_url}/items"
-            params = {
-                "filter": f'resourceType eq "app" and resourceId eq "{app_id}"',
-                "limit": 100
-            }
-            
-            response = requests.get(url, headers=self.headers, params=params, timeout=10)
-            response.raise_for_status()
-            items = response.json().get("data", [])
-            
-            tables = []
-            for item in items:
-                table_data = self._extract_table_from_item(item)
-                if table_data:
-                    tables.append(table_data)
-            
-            return tables
-            
-        except Exception as e:
-            logger.error(f"Failed to extract tables via items API: {str(e)}")
-            return []
-    
-    def _extract_table_from_item(self, item: Dict) -> Optional[Dict[str, Any]]:
-        """Extract table structure from item"""
-        try:
-            name = item.get("name", "Unknown")
-            
-            # Extract fields from item definition
-            definition = item.get("definition", {})
-            dimensions = definition.get("dimensions", [])
-            measures = definition.get("measures", [])
-            
-            fields = []
-            
-            # Add dimensions
-            for dim in dimensions:
-                field = {
-                    "name": dim.get("label") or dim.get("name", "Dimension"),
-                    "type": "string",
-                    "is_key": self._is_key_field(dim.get("name", ""))
-                }
-                fields.append(field)
-            
-            # Add measures
-            for meas in measures:
-                field = {
-                    "name": meas.get("label") or meas.get("name", "Measure"),
-                    "type": "decimal",
-                    "is_key": False
-                }
-                fields.append(field)
-            
-            if fields:
-                return {
-                    "name": name,
-                    "fields": fields,
-                    "field_count": len(fields)
-                }
-            
-            return None
-            
-        except Exception as e:
-            logger.error(f"Failed to extract table: {str(e)}")
-            return None
-    
-    def _is_key_field(self, field_name: str) -> bool:
-        """Detect if field is likely a primary key"""
-        key_patterns = ["id", "key", "code", "number"]
-        field_lower = field_name.lower()
-        return any(pat in field_lower for pat in key_patterns)
-
-    def _infer_field_type_from_tags(self, tags: List[str]) -> str:
-        """Infer a coarse field type from Qlik field tags."""
-        tag_text = " ".join(tags or []).lower()
-        if "$numeric" in tag_text:
-            return "decimal"
-        if "$date" in tag_text or "$timestamp" in tag_text or "$time" in tag_text:
-            return "date"
-        if "$boolean" in tag_text:
-            return "boolean"
-        return "string"
+def _col_name_for_m(name: str) -> str:
+    if re.match(r"^[A-Za-z_][A-Za-z0-9_ ]*$", name):
+        return name
+    return f'#"{name}"'

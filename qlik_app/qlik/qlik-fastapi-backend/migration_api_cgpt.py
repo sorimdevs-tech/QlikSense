@@ -424,102 +424,6 @@ async def xmla_login_status():
 import json
 import os
 
-def _normalize_tables_for_relationship_inference(tables: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-    """
-    Normalize table/field shape for Stage 2 relationship inference.
-    Accepts mixed field formats (string/dict) and returns a strict
-    [{"name": ..., "fields": [{"name": ..., "type": ...}, ...]}] structure.
-    """
-    normalized: List[Dict[str, Any]] = []
-    for table in tables or []:
-        if not isinstance(table, dict):
-            continue
-
-        table_name = str(table.get("name") or table.get("table_name") or "").strip()
-        if not table_name:
-            continue
-
-        raw_fields = table.get("fields") or table.get("columns") or []
-        fields: List[Dict[str, str]] = []
-
-        for field in raw_fields:
-            if isinstance(field, str):
-                field_name = field.strip()
-                field_type = "string"
-            elif isinstance(field, dict):
-                field_name = str(
-                    field.get("name")
-                    or field.get("qName")
-                    or field.get("field")
-                    or field.get("column")
-                    or ""
-                ).strip()
-                field_type = str(field.get("type") or field.get("dataType") or "string")
-            else:
-                field_name = str(field).strip()
-                field_type = "string"
-
-            if field_name:
-                fields.append({"name": field_name, "type": field_type})
-
-        normalized.append({"name": table_name, "fields": fields})
-
-    return normalized
-
-
-def _infer_normalized_relationships(tables: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-    """Infer and normalize relationships using Stage 2 + Stage 3 modules."""
-    normalized_tables = _normalize_tables_for_relationship_inference(tables)
-    if len(normalized_tables) < 2:
-        return []
-
-    try:
-        from stage2_relationship_inference import RelationshipInferenceEngine
-        from stage3_relationship_normalizer import RelationshipNormalizer
-
-        stage2 = RelationshipInferenceEngine().infer_relationships(normalized_tables)
-        inferred = stage2.get("relationships", []) if isinstance(stage2, dict) else []
-        if not inferred:
-            return []
-
-        stage3 = RelationshipNormalizer().normalize_relationships(normalized_tables, inferred)
-        normalized = stage3.get("relationships", []) if isinstance(stage3, dict) else []
-        return normalized if isinstance(normalized, list) else []
-    except Exception as exc:
-        logger.warning("[relationships] Inference failed: %s", exc)
-        return []
-
-
-def _filter_relationships_to_tables(
-    relationships: List[Dict[str, Any]],
-    table_names: List[str],
-) -> List[Dict[str, Any]]:
-    """Keep only relationships where both sides exist in table_names."""
-    allowed = {str(name).strip() for name in table_names if str(name).strip()}
-    if not allowed:
-        return []
-
-    filtered: List[Dict[str, Any]] = []
-    seen = set()
-
-    for rel in relationships or []:
-        from_table = str(rel.get("fromTable") or rel.get("from_table") or "").strip()
-        to_table = str(rel.get("toTable") or rel.get("to_table") or "").strip()
-        from_column = str(rel.get("fromColumn") or rel.get("from_column") or "").strip()
-        to_column = str(rel.get("toColumn") or rel.get("to_column") or "").strip()
-
-        if not from_table or not to_table or from_table not in allowed or to_table not in allowed:
-            continue
-
-        key = (from_table, from_column, to_table, to_column)
-        if key in seen:
-            continue
-        seen.add(key)
-        filtered.append(rel)
-
-    return filtered
-
-
 @router.post("/fetch-loadscript")
 async def fetch_loadscript_endpoint(
     app_id:     str           = Query(..., description="Qlik Cloud app ID"),
@@ -636,11 +540,6 @@ async def convert_to_mquery_endpoint(
             detail="No tables found in parsed_script_json. Re-run /parse-loadscript first."
         )
 
-    all_relationships = _filter_relationships_to_tables(
-        _infer_normalized_relationships(tables),
-        [t.get("name", "") for t in tables if isinstance(t, dict)],
-    )
-
     # 3. Convert using MQueryConverter (handles all source types including RESIDENT)
     try:
         from mquery_converter import MQueryConverter
@@ -693,13 +592,6 @@ async def convert_to_mquery_endpoint(
                 if target.get("source_type") == "resident" else ""
             )
 
-            related_table_names = {target.get("name", "")}
-            related_table_names.update(dep_queries.keys())
-            table_relationships = _filter_relationships_to_tables(
-                all_relationships,
-                list(related_table_names),
-            )
-
             logger.info(
                 "[convert_to_mquery_endpoint] [OK] Converted table '%s' [%s]",
                 table_name, target.get("source_type", "")
@@ -712,14 +604,10 @@ async def convert_to_mquery_endpoint(
                 "m_query":            m_expr,
                 "query_length":       len(m_expr),
                 "dependency_queries": dep_queries,
-                "relationships":      table_relationships,
-                "all_relationships":  all_relationships,
                 "message":            f"M Query generated for '{table_name}'.{resident_note}",
                 "statistics": {
                     "total_tables_available": len(tables),
                     "resident_dependencies":  len(dep_queries),
-                    "relationships_detected": len(all_relationships),
-                    "relationships_for_table": len(table_relationships),
                 },
             }
 
@@ -755,7 +643,6 @@ async def convert_to_mquery_endpoint(
                 "m_query":      combined_m,
                 "query_length": len(combined_m),
                 "all_tables":   all_converted,
-                "relationships": all_relationships,
                 "message":      (
                     f"M Query generated for all {len(all_converted)} table(s)."
                     + (
@@ -768,7 +655,6 @@ async def convert_to_mquery_endpoint(
                     "total_tables_converted":    len(all_converted),
                     "total_fields_converted":    sum(len(t.get("fields", [])) for t in tables),
                     "resident_tables":           len(resident_tables),
-                    "relationships_detected":    len(all_relationships),
                 },
             }
 
@@ -914,7 +800,6 @@ async def publish_mquery_endpoint(
     dataset_name = request.dataset_name or "Qlik_Migrated_Dataset"
     combined_m   = request.combined_mquery or ""
     raw_script   = request.raw_script or ""
-    supplied_relationships = request.relationships or []
 
     logger.info("=" * 70)
     logger.info("[publish_mquery] ENDPOINT: /publish-mquery")
@@ -930,80 +815,25 @@ async def publish_mquery_endpoint(
 
     # Parse M Query or LoadScript into table list
     try:
-        parsed_tables_for_relationships: List[Dict[str, Any]] = []
         from pbit_generator import parse_combined_mquery
         if combined_m.strip():
             tables_m = parse_combined_mquery(combined_m)
-            # Enrich with field metadata from loadscript if available
-            if raw_script:
-                try:
-                    from loadscript_parser import LoadScriptParser
-                    from mquery_converter import MQueryConverter
-                    parse_result  = LoadScriptParser(raw_script).parse()
-                    raw_tables    = parse_result.get("details", {}).get("tables", [])
-                    parsed_tables_for_relationships = raw_tables
-                    all_converted = MQueryConverter().convert_all(raw_tables)
-                    fields_by_name = {t["name"]: t.get("fields", []) for t in all_converted}
-                    for t in tables_m:
-                        if not t.get("fields"):
-                            t["fields"] = fields_by_name.get(t["name"], [])
-                except Exception as enrich_exc:
-                    logger.warning("[publish_mquery] Field enrichment failed: %s", enrich_exc)
-            # Keep system tables (e.g., MasterCalendar) when relationships reference them.
-            QLIK_SYSTEM_PREFIXES = ("__city", "__geo", "__key")
-            before = len(tables_m)
-            tables_m = [t for t in tables_m if not t["name"].startswith(QLIK_SYSTEM_PREFIXES)]
-            logger.info("[publish_mquery] Parsed combined M Query: %d tables (%d system tables filtered)", len(tables_m), before - len(tables_m))
+            logger.info("[publish_mquery] Parsed combined M Query: %d tables", len(tables_m))
         else:
             from loadscript_parser import LoadScriptParser
             from mquery_converter import MQueryConverter
             parse_result = LoadScriptParser(raw_script).parse()
             raw_tables   = parse_result.get("details", {}).get("tables", [])
-            parsed_tables_for_relationships = raw_tables
             converter    = MQueryConverter()
             all_converted = converter.convert_all(raw_tables, base_path="[DataSourcePath]")
             tables_m = [{"name": t["name"], "source_type": t["source_type"],
-                         "m_expression": t["m_expression"],
-                         "fields": t.get("fields", [])} for t in all_converted]
-            QLIK_SYSTEM_PREFIXES = ("__city", "__geo", "__key")
-            before = len(tables_m)
-            tables_m = [t for t in tables_m if not t["name"].startswith(QLIK_SYSTEM_PREFIXES)]
-            logger.info("[publish_mquery] Converted LoadScript: %d tables (%d system tables filtered)", len(tables_m), before - len(tables_m))
+                         "m_expression": t["m_expression"]} for t in all_converted]
+            logger.info("[publish_mquery] Converted LoadScript: %d tables", len(tables_m))
     except Exception as exc:
         raise HTTPException(status_code=500, detail=f"Script parse/convert error: {exc}")
 
     if not tables_m:
         raise HTTPException(status_code=400, detail="No tables found in the provided script.")
-
-    table_names = [t.get("name", "") for t in tables_m if isinstance(t, dict)]
-    relationships_to_apply = list(supplied_relationships)
-    inferred_relationships_count = 0
-
-    # Auto-infer relationships when caller does not provide them.
-    if not relationships_to_apply:
-        if parsed_tables_for_relationships:
-            inferred = _infer_normalized_relationships(parsed_tables_for_relationships)
-            inferred_relationships_count = len(inferred)
-            relationships_to_apply = _filter_relationships_to_tables(inferred, table_names)
-
-        # Fallback: infer from currently publishable table metadata.
-        if not relationships_to_apply:
-            inferred_from_publish = _infer_normalized_relationships([
-                {"name": t.get("name", ""), "fields": t.get("fields", [])}
-                for t in tables_m
-            ])
-            inferred_relationships_count = max(inferred_relationships_count, len(inferred_from_publish))
-            relationships_to_apply = _filter_relationships_to_tables(inferred_from_publish, table_names)
-
-    # Always drop relationships that reference tables/columns not present in this dataset
-    relationships_to_apply = _filter_relationships_to_tables(relationships_to_apply, table_names)
-
-    logger.info(
-        "[publish_mquery] Relationships: supplied=%d inferred=%d applying=%d",
-        len(supplied_relationships),
-        inferred_relationships_count,
-        len(relationships_to_apply),
-    )
 
     # Publish via new publisher (TMSL/Fabric API -> Push dataset fallback)
     try:
@@ -1012,7 +842,7 @@ async def publish_mquery_endpoint(
             dataset_name=dataset_name,
             tables_m=tables_m,
             workspace_id=workspace_id,
-            relationships=relationships_to_apply,
+            relationships=request.relationships or [],
             data_source_path=request.data_source_path or "",
             db_connection_string=request.db_connection_string or "",
             access_token=request.access_token or "",
@@ -1038,24 +868,12 @@ async def publish_mquery_endpoint(
             raise HTTPException(status_code=500, detail=result.get("error", "Publish failed"))
 
         logger.info("[publish_mquery] [OK] Published via %s", result.get("method"))
-        method = result.get("method", "")
-        relationships_applied = len(relationships_to_apply) if method == "fabric_items_api" else 0
-        if method != "fabric_items_api" and relationships_to_apply:
-            relationship_note = "Push dataset fallback was used; model relationships cannot be materialized in this mode."
-        elif relationships_to_apply:
-            relationship_note = f"Applied {relationships_applied} relationship(s) to the semantic model."
-        else:
-            relationship_note = "No relationships were provided/detected."
-
         return {
             "success":         True,
             "dataset_id":      result.get("dataset_id", ""),
             "dataset_name":    dataset_name,
             "tables_deployed": len(tables_m),
-            "method":          method,
-            "relationships_provided": len(relationships_to_apply),
-            "relationships_applied": relationships_applied,
-            "relationship_note": relationship_note,
+            "method":          result.get("method", ""),
             "workspace_url":   result.get("workspace_url", ""),
             "message":         result.get("message", f"Published {dataset_name} to Power BI"),
         }
@@ -1184,3 +1002,5 @@ async def generate_pbit_endpoint(request: GeneratePbitRequest):
     except Exception as exc:
         logger.exception("[generate_pbit] Failed")
         raise HTTPException(status_code=500, detail=f"PBIT generation failed: {exc}")
+
+

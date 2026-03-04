@@ -1,0 +1,48 @@
+=== M EXPRESSIONS DEBUG ===
+
+TABLE: VehicleService
+============================================================
+let
+    Source = #table(
+        type table [ServiceID = text, VehicleID = text, LastServiceDate = text, ServiceCost = text, ServiceStatus = text],
+        {
+        {"S001", "V001", "2025-01-10", "15000", "Completed"},
+        {"S002", "V002", "2025-01-12", "12000", "Completed"},
+        {"S003", "V003", "2025-01-05", "50000", "Completed"},
+        {"S004", "V004", "2024-12-28", "30000", "Pending"},
+        {"S005", "V005", "2025-01-15", "75000", "Completed"}
+    }
+    )
+in
+    Source
+============================================================
+
+TABLE: VehicleRoutes
+============================================================
+let
+    Source = #table(
+        type table [RouteID = text, VehicleID = text, RouteFrom = text, RouteTo = text, Status = text],
+        {
+        {"R001", "V001", "Chennai", "Bangalore", "Active"},
+        {"R002", "V002", "Mumbai", "Pune", "Active"},
+        {"R003", "V003", "Chennai", "Pondicherry", "Running"},
+        {"R004", "V004", "Delhi", "Jaipur", "In Transit"},
+============================================================
+
+TABLE: Vehicles
+============================================================
+let
+    Source = #table(
+        type table [VehicleID = text, VehicleType = text, Brand = text, Model = text, FuelType = text, Year = text],
+        {
+        {"V001", "Car", "Tata", "Nexon", "Electric", "2023"},
+        {"V002", "Car", "Hyundai", "Creta", "Diesel", "2023"},
+        {"V003", "Boat", "Sea Queen", "Ferry", "Diesel", "2022"},
+        {"V004", "Truck", "Ashok Leyland", "1616", "Diesel", "2021"},
+        {"V005", "Boat", "Ocean Star", "Cruise", "Diesel", "2023"}
+    }
+    )
+in
+    Source
+============================================================
+

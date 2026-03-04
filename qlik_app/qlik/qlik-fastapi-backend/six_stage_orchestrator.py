@@ -1,4 +1,18 @@
 """
+⚠️  DEPRECATED - Old 6-stage orchestrator no longer used
+
+Replaced by: migration_api.py
+Reason: Simplified, streamlined API-based approach (more efficient)
+
+Status: PRESERVED FOR REFERENCE (not used in active pipeline)
+To reactivate: Remove this notice and uncomment imports below
+"""
+
+# ============================================================================
+# ORIGINAL CODE BELOW (DEPRECATED)
+# ============================================================================
+
+"""
 Complete 6-stage orchestrator for Qlik-to-Power BI migration.
 
 Publish modes:
@@ -14,10 +28,11 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-from stage1_qlik_extractor import QlikMetadataExtractor
-from stage2_relationship_inference import RelationshipInferenceEngine
-from stage3_relationship_normalizer import RelationshipNormalizer
-from stage45_tabular_editor import PowerBIDatasetCreator, PowerBIRelationshipManager
+# ❌ DISABLED - Use migration_api.py instead
+# from stage1_qlik_extractor import QlikMetadataExtractor
+# from stage2_relationship_inference import RelationshipInferenceEngine
+# from stage3_relationship_normalizer import RelationshipNormalizer
+# from stage45_tabular_editor import PowerBIDatasetCreator, PowerBIRelationshipManager
 from stage6_er_diagram import ERDiagramGenerator
 from powerbi_xmla_connector import create_semantic_model_via_xmla
 

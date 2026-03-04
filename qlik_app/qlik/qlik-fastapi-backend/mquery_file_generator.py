@@ -1,180 +1,186 @@
 """
-M Query File Generator Module
+M Query File Generator Module (Production Ready)
 
-Generates PowerBI M Query files in multiple formats:
-- .pq (Power Query format)
-- .txt (Text format for documentation)
-- Combined .m format
+Generates Power BI M Query files in multiple formats:
+- .pq  (Power Query format)
+- .m   (Standard M file)
+- .txt (Documentation format)
+- .zip (Bundle containing all formats)
 
-Supports splitting LoadScript into individual table blocks for separate downloads.
+Designed to work with SimpleMQueryGenerator output.
+No fake placeholders. No invalid M syntax.
 """
 
 import logging
-from typing import Dict, List, Any, Tuple
-import json
+from typing import Dict, Any
+from datetime import datetime
+import io
+import zipfile
 
 logger = logging.getLogger(__name__)
 
 
 class MQueryFileGenerator:
-    """Generate M Query files in various formats"""
-    
+    """
+    Generate downloadable Power BI M Query files.
+    Accepts fully generated M Query string (from SimpleMQueryGenerator).
+    """
+
     def __init__(self, m_query: str, parsed_script: Dict[str, Any] = None):
-        """Initialize file generator"""
-        self.m_query = m_query
+        self.m_query = m_query.strip()
         self.parsed_script = parsed_script or {}
-        self.tables = parsed_script.get('details', {}).get('tables', [])
-    
+        self.summary = self.parsed_script.get("summary", {})
+
+    # ============================================================
+    # .PQ FILE
+    # ============================================================
+
     def generate_pq_content(self) -> str:
-        """
-        Generate .pq format (Power Query format)
-        This is compatible with Power Query import
-        """
-        logger.info("Generating .pq format file...")
-        
-        content = f"""// Power BI Query - Converted from Qlik LoadScript
-// Generated automatically for Power Query Editor
+        """Generate .pq file content (Power Query compatible)"""
 
-{self.m_query}"""
-        
-        logger.info(f"✅ Generated .pq content ({len(content)} characters)")
-        return content
-    
-    def generate_txt_content(self) -> str:
-        """
-        Generate .txt format (Documentation format)
-        Contains M Query with metadata and instructions
-        """
-        logger.info("Generating .txt format file...")
-        
-        # Build metadata section
-        metadata = "=" * 80 + "\n"
-        metadata += "POWER BI M QUERY - DOCUMENTATION\n"
-        metadata += "=" * 80 + "\n\n"
-        
-        # Add script summary
-        if self.parsed_script:
-            summary = self.parsed_script.get('summary', {})
-            metadata += "SCRIPT SUMMARY:\n"
-            metadata += f"  Tables: {summary.get('tables_count', 'N/A')}\n"
-            metadata += f"  Fields: {summary.get('fields_count', 'N/A')}\n"
-            metadata += f"  Data Connections: {summary.get('connections_count', 'N/A')}\n"
-            metadata += f"  Transformations: {summary.get('transformations_count', 'N/A')}\n\n"
-        
-        # Add usage instructions
-        metadata += "USAGE INSTRUCTIONS:\n"
-        metadata += "1. Open Power BI Desktop\n"
-        metadata += "2. Go to Home tab > Get Data > Other > Web (or paste directly in Editor)\n"
-        metadata += "3. Paste the M Query code below into the Advanced Editor\n"
-        metadata += "4. Adjust data source connections as needed\n"
-        metadata += "5. Click 'Load' to import data\n\n"
-        
-        metadata += "=" * 80 + "\n"
-        metadata += "M QUERY CODE:\n"
-        metadata += "=" * 80 + "\n\n"
-        
-        content = metadata + self.m_query
-        logger.info(f"✅ Generated .txt content ({len(content)} characters)")
-        return content
-    
+        header = (
+            "// ============================================================\n"
+            "// Power BI M Query\n"
+            "// Converted from Qlik LoadScript\n"
+            f"// Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n"
+            "// ============================================================\n\n"
+        )
+
+        return header + self.m_query
+
+    # ============================================================
+    # .M FILE
+    # ============================================================
+
     def generate_m_content(self) -> str:
-        """
-        Generate standard .m format
-        Same as M query but potentially with additional wrapper
-        """
-        logger.info("Generating .m format file...")
-        content = self.m_query
-        logger.info(f"✅ Generated .m content ({len(content)} characters)")
-        return content
-    
-    def split_tables(self) -> Dict[str, str]:
-        """
-        Split M Query and LoadScript into individual table queries
-        Returns: {table_name: "M Query for this table"}
-        """
-        logger.info(f"Splitting into {len(self.tables)} individual tables...")
-        
-        table_queries = {}
-        
-        for table in self.tables:
-            table_name = table.get('name', 'Unknown')
-            table_alias = table.get('alias', table_name)
-            
-            # Create individual M query for this table
-            individual_query = f"""let
-    // Table: {table_name}
-    // Alias: {table_alias}
-    Source = [Data Source for {table_name}],
-    #"Transformed Data" = Source,
-    Result = #"Transformed Data"
-in
-    Result"""
-            
-            table_queries[table_name] = individual_query
-            logger.info(f"  ✓ Created query for table: {table_name}")
-        
-        logger.info(f"✅ Split into {len(table_queries)} table queries")
-        return table_queries
-    
-    def get_file_downloads(self) -> Dict[str, Dict[str, str]]:
-        """
-        Get all available file formats for download
-        
-        Returns: {
-            'pq': {'filename': 'query.pq', 'content': '...'},
-            'txt': {'filename': 'query.txt', 'content': '...'},
-            'm': {'filename': 'query.m', 'content': '...'}
-        }
-        """
-        logger.info("Generating all file formats for download...")
-        
-        files = {
-            'pq': {
-                'filename': 'powerbi_query.pq',
-                'content': self.generate_pq_content(),
-                'mime_type': 'text/plain'
-            },
-            'txt': {
-                'filename': 'powerbi_query_documentation.txt',
-                'content': self.generate_txt_content(),
-                'mime_type': 'text/plain'
-            },
-            'm': {
-                'filename': 'powerbi_query.m',
-                'content': self.generate_m_content(),
-                'mime_type': 'text/plain'
-            }
-        }
-        
-        logger.info(f"✅ Generated {len(files)} file formats")
-        return files
+        """Generate standard .m file content"""
+        return self.m_query
 
+    # ============================================================
+    # .TXT FILE (Documentation)
+    # ============================================================
+
+    def generate_txt_content(self) -> str:
+        """Generate documentation-friendly .txt file"""
+
+        metadata = (
+            "=" * 80 + "\n"
+            "POWER BI M QUERY DOCUMENTATION\n"
+            + "=" * 80 + "\n\n"
+        )
+
+        if self.summary:
+            metadata += "SCRIPT SUMMARY:\n"
+            metadata += f"  Tables: {self.summary.get('tables_count', 0)}\n"
+            metadata += f"  Fields: {self.summary.get('fields_count', 0)}\n"
+            metadata += f"  Data Connections: {self.summary.get('connections_count', 0)}\n"
+            metadata += f"  Transformations: {self.summary.get('transformations_count', 0)}\n"
+            metadata += f"  Joins: {self.summary.get('joins_count', 0)}\n\n"
+
+        metadata += (
+            "HOW TO USE:\n"
+            "1. Open Power BI Desktop\n"
+            "2. Click: Home → Transform Data → Advanced Editor\n"
+            "3. Replace existing code with the M Query below\n"
+            "4. Click Done\n\n"
+            + "=" * 80 + "\n"
+            "M QUERY CODE\n"
+            + "=" * 80 + "\n\n"
+        )
+
+        return metadata + self.m_query
+
+    # ============================================================
+    # EXTRACT INDIVIDUAL TABLE BLOCKS (REAL SPLIT)
+    # ============================================================
+
+    def split_tables_from_mquery(self) -> Dict[str, str]:
+        """
+        Split multi-table M Query (generated by SimpleMQueryGenerator)
+        into individual table query blocks.
+
+        Works only if generator output contains:
+        // ===== TABLE: TableName =====
+        """
+
+        logger.info("Splitting tables from generated M Query...")
+
+        table_blocks = {}
+        lines = self.m_query.splitlines()
+
+        current_table = None
+        current_buffer = []
+
+        for line in lines:
+            if line.strip().startswith("// ===== TABLE:"):
+                # Save previous table
+                if current_table and current_buffer:
+                    table_blocks[current_table] = "\n".join(current_buffer).strip()
+                    current_buffer = []
+
+                current_table = line.replace("// ===== TABLE:", "").strip()
+                continue
+
+            if current_table:
+                current_buffer.append(line)
+
+        # Save last table
+        if current_table and current_buffer:
+            table_blocks[current_table] = "\n".join(current_buffer).strip()
+
+        logger.info(f"✅ Extracted {len(table_blocks)} table block(s)")
+        return table_blocks
+
+    # ============================================================
+    # FILE DOWNLOAD STRUCTURE
+    # ============================================================
+
+    def get_file_downloads(self) -> Dict[str, Dict[str, str]]:
+        """Return all supported file formats"""
+
+        return {
+            "pq": {
+                "filename": "powerbi_query.pq",
+                "content": self.generate_pq_content(),
+                "mime_type": "text/plain",
+            },
+            "m": {
+                "filename": "powerbi_query.m",
+                "content": self.generate_m_content(),
+                "mime_type": "text/plain",
+            },
+            "txt": {
+                "filename": "powerbi_query_documentation.txt",
+                "content": self.generate_txt_content(),
+                "mime_type": "text/plain",
+            },
+        }
+
+
+# ============================================================
+# ZIP GENERATOR
+# ============================================================
 
 def generate_dual_download_zip(m_query: str, parsed_script: Dict[str, Any] = None) -> bytes:
     """
-    Generate a ZIP file containing .pq, .txt, and .m files
-    
-    Returns: ZIP file content as bytes
+    Create ZIP package containing:
+    - .pq
+    - .m
+    - .txt
     """
-    import io
-    import zipfile
-    
-    logger.info("Creating dual-file ZIP package...")
-    
+
+    logger.info("Creating ZIP package with .pq, .m, .txt")
+
     generator = MQueryFileGenerator(m_query, parsed_script)
     files = generator.get_file_downloads()
-    
-    # Create ZIP in memory
+
     zip_buffer = io.BytesIO()
-    with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zip_file:
-        for file_key, file_data in files.items():
-            if file_key in ['pq', 'txt', 'm']:  # Include .pq, .txt, and .m in zip
-                zip_file.writestr(
-                    file_data['filename'],
-                    file_data['content']
-                )
-                logger.info(f"  ✓ Added {file_key} file to ZIP: {file_data['filename']}")
-    
+
+    with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zip_file:
+        for file_info in files.values():
+            zip_file.writestr(file_info["filename"], file_info["content"])
+
     zip_buffer.seek(0)
-    logger.info(f"✅ Created ZIP file ({len(zip_buffer.getvalue())} bytes) with .pq, .txt, and .m")
+
+    logger.info(f"✅ ZIP created ({len(zip_buffer.getvalue())} bytes)")
     return zip_buffer.getvalue()

@@ -1,0 +1,659 @@
+{
+  "name": "Vehicle_Fact_MASTER",
+  "compatibilityLevel": 1550,
+  "model": {
+    "culture": "en-US",
+    "dataAccessOptions": {
+      "legacyRedirects": true,
+      "returnErrorValuesAsNull": true
+    },
+    "defaultPowerBIDataSourceVersion": "powerBI_V3",
+    "sourceQueryCulture": "en-US",
+    "tables": [
+      {
+        "name": "Vehicle_Fact_MASTER",
+        "columns": [
+          {
+            "name": "VIN",
+            "dataType": "string",
+            "sourceColumn": "VIN",
+            "summarizeBy": "none",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ]
+          },
+          {
+            "name": "ModelName",
+            "dataType": "string",
+            "sourceColumn": "ModelName",
+            "summarizeBy": "none",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ]
+          },
+          {
+            "name": "VariantName",
+            "dataType": "string",
+            "sourceColumn": "VariantName",
+            "summarizeBy": "none",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ]
+          },
+          {
+            "name": "FuelType",
+            "dataType": "string",
+            "sourceColumn": "FuelType",
+            "summarizeBy": "none",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ]
+          },
+          {
+            "name": "VehicleChannel",
+            "dataType": "string",
+            "sourceColumn": "VehicleChannel",
+            "summarizeBy": "none",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ]
+          },
+          {
+            "name": "ManufactureYear",
+            "dataType": "string",
+            "sourceColumn": "ManufactureYear",
+            "summarizeBy": "none",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ]
+          },
+          {
+            "name": "SalePrice",
+            "dataType": "string",
+            "sourceColumn": "SalePrice",
+            "summarizeBy": "none",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ]
+          },
+          {
+            "name": "ServiceDate",
+            "dataType": "string",
+            "sourceColumn": "ServiceDate",
+            "summarizeBy": "none",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ]
+          },
+          {
+            "name": "ServiceType",
+            "dataType": "string",
+            "sourceColumn": "ServiceType",
+            "summarizeBy": "none",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ]
+          },
+          {
+            "name": "ServiceCost",
+            "dataType": "string",
+            "sourceColumn": "ServiceCost",
+            "summarizeBy": "none",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ]
+          }
+        ],
+        "partitions": [
+          {
+            "name": "Vehicle_Fact_MASTER-Partition",
+            "mode": "import",
+            "source": {
+              "type": "m",
+              "expression": [
+                "let",
+                "    FilePath = [DataSourcePath] & \"/Vehicle_Fact_MASTER.csv\",",
+                "    Source = Csv.Document(",
+                "        File.Contents(FilePath),",
+                "        [Delimiter=\",\", Encoding=65001, QuoteStyle=QuoteStyle.Csv]",
+                "    ),",
+                "    PromotedHeaders = Table.PromoteHeaders(Source, [PromoteAllScalars=true]),",
+                "    TypedTable = Table.TransformColumnTypes(",
+                "        PromotedHeaders,",
+                "        {",
+                "        {\"VIN\", type text},",
+                "        {\"ModelName\", type text},",
+                "        {\"VariantName\", type text},",
+                "        {\"FuelType\", type text},",
+                "        {\"VehicleChannel\", type text},",
+                "        {\"ManufactureYear\", type text},",
+                "        {\"SalePrice\", type text},",
+                "        {\"ServiceDate\", type text},",
+                "        {\"ServiceType\", type text},",
+                "        {\"ServiceCost\", type text}",
+                "        }",
+                "    )",
+                "in",
+                "    TypedTable"
+              ]
+            }
+          }
+        ]
+      },
+      {
+        "name": "Dealer_Master",
+        "columns": [
+          {
+            "name": "DealerID-ServiceID",
+            "dataType": "string",
+            "sourceColumn": "DealerID-ServiceID",
+            "summarizeBy": "none",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ]
+          },
+          {
+            "name": "DealerName",
+            "dataType": "string",
+            "sourceColumn": "DealerName",
+            "summarizeBy": "none",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ]
+          },
+          {
+            "name": "City",
+            "dataType": "string",
+            "sourceColumn": "City",
+            "summarizeBy": "none",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ]
+          },
+          {
+            "name": "Phone",
+            "dataType": "string",
+            "sourceColumn": "Phone",
+            "summarizeBy": "none",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ]
+          },
+          {
+            "name": "Email",
+            "dataType": "string",
+            "sourceColumn": "Email",
+            "summarizeBy": "none",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ]
+          },
+          {
+            "name": "Dealer_Master.City_GeoInfo",
+            "dataType": "string",
+            "sourceColumn": "Dealer_Master.City_GeoInfo",
+            "summarizeBy": "none",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ]
+          }
+        ],
+        "partitions": [
+          {
+            "name": "Dealer_Master-Partition",
+            "mode": "import",
+            "source": {
+              "type": "m",
+              "expression": [
+                "let",
+                "    FilePath = [DataSourcePath] & \"/Dealer_Master.csv\",",
+                "    Source = Csv.Document(",
+                "        File.Contents(FilePath),",
+                "        [Delimiter=\",\", Encoding=65001, QuoteStyle=QuoteStyle.Csv]",
+                "    ),",
+                "    PromotedHeaders = Table.PromoteHeaders(Source, [PromoteAllScalars=true]),",
+                "    TypedTable = Table.TransformColumnTypes(",
+                "        PromotedHeaders,",
+                "        {",
+                "        {\"DealerID-ServiceID\", type text},",
+                "        {\"DealerName\", type text},",
+                "        {\"City\", type text},",
+                "        {\"Phone\", type text},",
+                "        {\"Email\", type text},",
+                "        {\"City_GeoInfo\", type text}",
+                "        }",
+                "    )",
+                "in",
+                "    TypedTable"
+              ]
+            }
+          }
+        ]
+      },
+      {
+        "name": "Model_Master",
+        "columns": [
+          {
+            "name": "Model_Master.ModelID",
+            "dataType": "string",
+            "sourceColumn": "Model_Master.ModelID",
+            "summarizeBy": "none",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ]
+          },
+          {
+            "name": "ModelName",
+            "dataType": "string",
+            "sourceColumn": "ModelName",
+            "summarizeBy": "none",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ]
+          }
+        ],
+        "partitions": [
+          {
+            "name": "Model_Master-Partition",
+            "mode": "import",
+            "source": {
+              "type": "m",
+              "expression": [
+                "let",
+                "    FilePath = [DataSourcePath] & \"/Model_Master.csv\",",
+                "    Source = Csv.Document(",
+                "        File.Contents(FilePath),",
+                "        [Delimiter=\",\", Encoding=65001, QuoteStyle=QuoteStyle.Csv]",
+                "    ),",
+                "    PromotedHeaders = Table.PromoteHeaders(Source, [PromoteAllScalars=true]),",
+                "    TypedTable = Table.TransformColumnTypes(",
+                "        PromotedHeaders,",
+                "        {",
+                "        {\"ModelID\", type text},",
+                "        {\"ModelName\", type text}",
+                "        }",
+                "    )",
+                "in",
+                "    TypedTable"
+              ]
+            }
+          }
+        ]
+      },
+      {
+        "name": "Service_History",
+        "columns": [
+          {
+            "name": "DealerID-ServiceID",
+            "dataType": "string",
+            "sourceColumn": "DealerID-ServiceID",
+            "summarizeBy": "none",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ]
+          },
+          {
+            "name": "VehicleID",
+            "dataType": "string",
+            "sourceColumn": "VehicleID",
+            "summarizeBy": "none",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ]
+          },
+          {
+            "name": "Service_History.ServiceDate",
+            "dataType": "string",
+            "sourceColumn": "Service_History.ServiceDate",
+            "summarizeBy": "none",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ]
+          },
+          {
+            "name": "ServiceType",
+            "dataType": "string",
+            "sourceColumn": "ServiceType",
+            "summarizeBy": "none",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ]
+          },
+          {
+            "name": "Service_History.ServiceCost",
+            "dataType": "string",
+            "sourceColumn": "Service_History.ServiceCost",
+            "summarizeBy": "none",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ]
+          }
+        ],
+        "partitions": [
+          {
+            "name": "Service_History-Partition",
+            "mode": "import",
+            "source": {
+              "type": "m",
+              "expression": [
+                "let",
+                "    FilePath = [DataSourcePath] & \"/Service_History.csv\",",
+                "    Source = Csv.Document(",
+                "        File.Contents(FilePath),",
+                "        [Delimiter=\",\", Encoding=65001, QuoteStyle=QuoteStyle.Csv]",
+                "    ),",
+                "    PromotedHeaders = Table.PromoteHeaders(Source, [PromoteAllScalars=true]),",
+                "    TypedTable = Table.TransformColumnTypes(",
+                "        PromotedHeaders,",
+                "        {",
+                "        {\"DealerID-ServiceID\", type text},",
+                "        {\"VehicleID\", type text},",
+                "        {\"ServiceDate\", type text},",
+                "        {\"ServiceType\", type text},",
+                "        {\"ServiceCost\", type text}",
+                "        }",
+                "    )",
+                "in",
+                "    TypedTable"
+              ]
+            }
+          }
+        ]
+      },
+      {
+        "name": "Variant_Master",
+        "columns": [
+          {
+            "name": "VariantID",
+            "dataType": "string",
+            "sourceColumn": "VariantID",
+            "summarizeBy": "none",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ]
+          },
+          {
+            "name": "Variant_Master.ModelID",
+            "dataType": "string",
+            "sourceColumn": "Variant_Master.ModelID",
+            "summarizeBy": "none",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ]
+          },
+          {
+            "name": "VariantName",
+            "dataType": "string",
+            "sourceColumn": "VariantName",
+            "summarizeBy": "none",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ]
+          }
+        ],
+        "partitions": [
+          {
+            "name": "Variant_Master-Partition",
+            "mode": "import",
+            "source": {
+              "type": "m",
+              "expression": [
+                "let",
+                "    FilePath = [DataSourcePath] & \"/Variant_Master.csv\",",
+                "    Source = Csv.Document(",
+                "        File.Contents(FilePath),",
+                "        [Delimiter=\",\", Encoding=65001, QuoteStyle=QuoteStyle.Csv]",
+                "    ),",
+                "    PromotedHeaders = Table.PromoteHeaders(Source, [PromoteAllScalars=true]),",
+                "    TypedTable = Table.TransformColumnTypes(",
+                "        PromotedHeaders,",
+                "        {",
+                "        {\"VariantID\", type text},",
+                "        {\"ModelID\", type text},",
+                "        {\"VariantName\", type text}",
+                "        }",
+                "    )",
+                "in",
+                "    TypedTable"
+              ]
+            }
+          }
+        ]
+      },
+      {
+        "name": "VIN_Details",
+        "columns": [
+          {
+            "name": "VIN",
+            "dataType": "string",
+            "sourceColumn": "VIN",
+            "summarizeBy": "none",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ]
+          },
+          {
+            "name": "EngineNumber",
+            "dataType": "string",
+            "sourceColumn": "EngineNumber",
+            "summarizeBy": "none",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ]
+          },
+          {
+            "name": "ChassisNumber",
+            "dataType": "string",
+            "sourceColumn": "ChassisNumber",
+            "summarizeBy": "none",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ]
+          },
+          {
+            "name": "ProductionPlant",
+            "dataType": "string",
+            "sourceColumn": "ProductionPlant",
+            "summarizeBy": "none",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ]
+          },
+          {
+            "name": "ProductionDate",
+            "dataType": "string",
+            "sourceColumn": "ProductionDate",
+            "summarizeBy": "none",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ]
+          }
+        ],
+        "partitions": [
+          {
+            "name": "VIN_Details-Partition",
+            "mode": "import",
+            "source": {
+              "type": "m",
+              "expression": [
+                "let",
+                "    FilePath = [DataSourcePath] & \"/VIN_Details.csv\",",
+                "    Source = Csv.Document(",
+                "        File.Contents(FilePath),",
+                "        [Delimiter=\",\", Encoding=65001, QuoteStyle=QuoteStyle.Csv]",
+                "    ),",
+                "    PromotedHeaders = Table.PromoteHeaders(Source, [PromoteAllScalars=true]),",
+                "    TypedTable = Table.TransformColumnTypes(",
+                "        PromotedHeaders,",
+                "        {",
+                "        {\"VIN\", type text},",
+                "        {\"EngineNumber\", type text},",
+                "        {\"ChassisNumber\", type text},",
+                "        {\"ProductionPlant\", type text},",
+                "        {\"ProductionDate\", type text}",
+                "        }",
+                "    )",
+                "in",
+                "    TypedTable"
+              ]
+            }
+          }
+        ]
+      }
+    ],
+    "relationships": [
+      {
+        "name": "Vehicle_Fact_MASTER_ModelName_Model_Master_ModelName",
+        "fromTable": "Vehicle_Fact_MASTER",
+        "fromColumn": "ModelName",
+        "toTable": "Model_Master",
+        "toColumn": "ModelName",
+        "crossFilteringBehavior": "oneDirection"
+      },
+      {
+        "name": "Vehicle_Fact_MASTER_ServiceType_Service_History_ServiceType",
+        "fromTable": "Vehicle_Fact_MASTER",
+        "fromColumn": "ServiceType",
+        "toTable": "Service_History",
+        "toColumn": "ServiceType",
+        "crossFilteringBehavior": "oneDirection"
+      },
+      {
+        "name": "Vehicle_Fact_MASTER_VariantName_Variant_Master_VariantName",
+        "fromTable": "Vehicle_Fact_MASTER",
+        "fromColumn": "VariantName",
+        "toTable": "Variant_Master",
+        "toColumn": "VariantName",
+        "crossFilteringBehavior": "oneDirection"
+      },
+      {
+        "name": "Vehicle_Fact_MASTER_VIN_VIN_Details_VIN",
+        "fromTable": "Vehicle_Fact_MASTER",
+        "fromColumn": "VIN",
+        "toTable": "VIN_Details",
+        "toColumn": "VIN",
+        "crossFilteringBehavior": "oneDirection"
+      },
+      {
+        "name": "Dealer_Master_DealerID-ServiceID_Service_History_DealerID-ServiceID",
+        "fromTable": "Dealer_Master",
+        "fromColumn": "DealerID-ServiceID",
+        "toTable": "Service_History",
+        "toColumn": "DealerID-ServiceID",
+        "crossFilteringBehavior": "oneDirection"
+      }
+    ],
+    "expressions": [
+      {
+        "name": "DataSourcePath",
+        "kind": "m",
+        "expression": [
+          "\"\""
+        ]
+      }
+    ],
+    "annotations": [
+      {
+        "name": "PBIDesktopVersion",
+        "value": "2.130.930.0"
+      },
+      {
+        "name": "createdBy",
+        "value": "QlikAI_Accelerator"
+      }
+    ]
+  }
+}
