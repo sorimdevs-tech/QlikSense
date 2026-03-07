@@ -20,7 +20,222 @@ type Row = Record<string, any>;
  
  
  
-export default function SummaryPage() {
+// ─────────────────────────────────────────────────────────────────────────────
+// SharePoint Folder Picker Component
+// ─────────────────────────────────────────────────────────────────────────────
+interface SpFolder { name: string; path: string; item_id?: string; }
+
+interface SharePointFolderPickerProps {
+  dataSourcePath: string;
+  setDataSourcePath: (v: string) => void;
+  selectedFolder: string;
+  setSelectedFolder: (v: string) => void;
+}
+
+const SharePointFolderPicker: React.FC<SharePointFolderPickerProps> = ({
+  dataSourcePath, setDataSourcePath, selectedFolder, setSelectedFolder
+}) => {
+  const [folders, setFolders] = React.useState<SpFolder[]>([]);
+  const [loadingFolders, setLoadingFolders] = React.useState(false);
+  const [folderError, setFolderError] = React.useState("");
+  const [manualFolder, setManualFolder] = React.useState(false);
+  const [manualFolderValue, setManualFolderValue] = React.useState("");
+  const [browsed, setBrowsed] = React.useState(false);
+
+  const isSharePoint = dataSourcePath.toLowerCase().includes("sharepoint.com");
+
+  const BASE_URL = (window as any).__VITE_API_URL__ || "";
+
+  const fetchFolders = async () => {
+    if (!dataSourcePath.trim()) return;
+    setLoadingFolders(true);
+    setFolderError("");
+    setFolders([]);
+    setBrowsed(true);
+    setSelectedFolder("");
+
+    try {
+      const url = `${BASE_URL}/api/migration/sharepoint-folders?site_url=${encodeURIComponent(dataSourcePath.trim())}`;
+      const res = await fetch(url);
+      const data = await res.json();
+
+      if (data.folders && data.folders.length > 0) {
+        setFolders(data.folders);
+        setFolderError("");
+      } else {
+        setFolderError(data.message || "No folders found — try entering folder name manually");
+        setManualFolder(true);
+      }
+    } catch (e) {
+      setFolderError("Network error fetching folders — enter folder name manually");
+      setManualFolder(true);
+    } finally {
+      setLoadingFolders(false);
+    }
+  };
+
+  const inputStyle: React.CSSProperties = {
+    padding: "7px 10px", fontSize: "12px", fontFamily: "monospace",
+    border: "1px solid #cbd5e1", borderRadius: "4px", outline: "none",
+    width: "100%", boxSizing: "border-box" as const, background: "#fff",
+  };
+
+  return (
+    <div style={{
+      display: "flex", flexDirection: "column", gap: "10px",
+      marginBottom: "10px", padding: "12px 14px",
+      background: "#f0f9ff", borderRadius: "8px", border: "1px solid #bae6fd",
+    }}>
+
+      {/* ── Row 1: URL Input + Browse Button ── */}
+      <div>
+        <label style={{ fontSize: "12px", fontWeight: 600, color: "#0369a1", display: "block", marginBottom: "4px" }}>
+          🌐 Data Source URL <span style={{ fontWeight: 400, color: "#64748b" }}>(SharePoint or file path)</span>
+        </label>
+        <div style={{ display: "flex", gap: "6px" }}>
+          <input
+            type="text"
+            value={dataSourcePath}
+            onChange={(e) => {
+              setDataSourcePath(e.target.value);
+              setFolders([]);
+              setSelectedFolder("");
+              setBrowsed(false);
+              setManualFolder(false);
+            }}
+            placeholder="https://company.sharepoint.com/sites/mysite"
+            style={inputStyle}
+          />
+          {isSharePoint && (
+            <button
+              onClick={fetchFolders}
+              disabled={loadingFolders || !dataSourcePath.trim()}
+              title="Fetch folders from SharePoint"
+              style={{
+                padding: "7px 14px", fontSize: "12px", whiteSpace: "nowrap",
+                background: loadingFolders ? "#94a3b8" : "#0369a1",
+                color: "#fff", border: "none", borderRadius: "4px",
+                cursor: loadingFolders ? "not-allowed" : "pointer", fontWeight: 600,
+                minWidth: "90px",
+              }}
+            >
+              {loadingFolders ? "⏳ Loading" : "📂 Browse"}
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* ── Row 2: Folder Dropdown (shown after Browse) ── */}
+      {isSharePoint && browsed && !manualFolder && (
+        <div>
+          <label style={{ fontSize: "12px", fontWeight: 600, color: "#0369a1", display: "block", marginBottom: "4px" }}>
+            📁 Select Folder <span style={{ color: "#ef4444" }}>*</span>
+            <span style={{ fontWeight: 400, color: "#64748b", marginLeft: "4px" }}>
+              — choose the folder where your CSV files are stored
+            </span>
+          </label>
+
+          {folders.length > 0 ? (
+            <div style={{ display: "flex", gap: "6px", alignItems: "center" }}>
+              <select
+                value={selectedFolder}
+                onChange={(e) => setSelectedFolder(e.target.value)}
+                style={{
+                  ...inputStyle,
+                  flex: 1,
+                  background: selectedFolder ? "#f0fff4" : "#fff",
+                  border: selectedFolder ? "1px solid #86efac" : "1px solid #cbd5e1",
+                  fontWeight: selectedFolder ? 600 : 400,
+                }}
+              >
+                <option value="">-- Choose a folder --</option>
+                {folders.map((f) => (
+                  <option key={f.path} value={f.name}>
+                    📁 {f.name}
+                  </option>
+                ))}
+              </select>
+              <button
+                onClick={() => setManualFolder(true)}
+                title="Type folder name manually instead"
+                style={{
+                  padding: "7px 10px", fontSize: "13px", background: "#e2e8f0",
+                  border: "1px solid #cbd5e1", borderRadius: "4px", cursor: "pointer",
+                }}
+              >✏️</button>
+            </div>
+          ) : (
+            <div style={{ fontSize: "12px", color: "#64748b", padding: "6px 0" }}>
+              No subfolders found — enter folder name manually below
+            </div>
+          )}
+
+          {/* Confirmation message */}
+          {selectedFolder && (
+            <div style={{
+              marginTop: "6px", padding: "5px 10px",
+              background: "#f0fff4", borderRadius: "4px", border: "1px solid #86efac",
+              fontSize: "11px", color: "#16a34a",
+            }}>
+              ✅ M Query will load CSV files from: <code style={{ fontWeight: 700 }}>Shared Documents/{selectedFolder}/</code>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── Row 3: Manual folder entry ── */}
+      {isSharePoint && (manualFolder || (browsed && folders.length === 0)) && (
+        <div>
+          <label style={{ fontSize: "12px", fontWeight: 600, color: "#0369a1", display: "block", marginBottom: "4px" }}>
+            📁 Folder Name
+            <span style={{ fontWeight: 400, color: "#64748b", marginLeft: "4px" }}>
+              (type the exact subfolder name)
+            </span>
+          </label>
+          <div style={{ display: "flex", gap: "6px" }}>
+            <input
+              type="text"
+              value={manualFolderValue || selectedFolder}
+              onChange={(e) => {
+                setManualFolderValue(e.target.value);
+                setSelectedFolder(e.target.value);
+              }}
+              placeholder="e.g. CSVFilesDatas  or  SchoolFiles"
+              style={{ ...inputStyle, background: selectedFolder ? "#f0fff4" : "#fff" }}
+            />
+            {/* Back to dropdown if folders were loaded */}
+            {manualFolder && folders.length > 0 && (
+              <button
+                onClick={() => { setManualFolder(false); setManualFolderValue(""); }}
+                title="Back to folder dropdown"
+                style={{
+                  padding: "7px 10px", fontSize: "13px", background: "#e2e8f0",
+                  border: "1px solid #cbd5e1", borderRadius: "4px", cursor: "pointer",
+                }}
+              >↩</button>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ── Error message ── */}
+      {folderError && (
+        <div style={{ fontSize: "11px", color: "#b45309", padding: "5px 8px", background: "#fffbeb", borderRadius: "4px", border: "1px solid #fde68a" }}>
+          ⚠️ {folderError}
+        </div>
+      )}
+
+      {/* ── Non-SharePoint hint ── */}
+      {!isSharePoint && dataSourcePath && (
+        <span style={{ fontSize: "11px", color: "#64748b" }}>
+          For local/network paths, enter the full path above. For SharePoint, enter the site URL and click Browse.
+        </span>
+      )}
+    </div>
+  );
+};
+
+function SummaryPage() {
   const location = useLocation();
   const navigate = useNavigate();
   const pageStartTimeRef = useRef<number | null>(null);
@@ -58,6 +273,7 @@ export default function SummaryPage() {
   const [publishStatus, setPublishStatus] = useState<"idle" | "success" | "error">("idle");
   const [publishMessage, setPublishMessage] = useState<string>("");
   const [dataSourcePath, setDataSourcePath] = useState<string>("");
+  const [selectedSpFolder, setSelectedSpFolder] = useState<string>("");
   const [generatingPbit, setGeneratingPbit] = useState<boolean>(false);
   const [pbitMessage, setPbitMessage] = useState<string>("");
  
@@ -646,10 +862,17 @@ const downloadCSV = async () => {
       // Convert to M Query — pass "" as table_name to get ALL tables in one combined script
       // This ensures RESIDENT/relationship tables are included alongside their source tables.
       // Pass dataSourcePath as base_path so API generates M queries with correct SharePoint URLs
+      // Build base_path: if SharePoint URL + folder selected, append the folder
+      let effectiveBasePath = dataSourcePath.trim();
+      if (effectiveBasePath && selectedSpFolder && selectedSpFolder !== "Shared Documents") {
+        // Pass folder as sp_subfolder via query param hint embedded in path
+        // The converter will extract folder from the path options
+      }
       const convertResult = await convertToMQuery(
         JSON.stringify(scriptToConvert),
         "",   // empty = convert all tables, not just the selected one
-        dataSourcePath  // SharePoint URL or file path for base_path parameter
+        effectiveBasePath,  // SharePoint URL
+        selectedSpFolder    // selected folder name
       );
 
       if (convertResult.status !== "success" && convertResult.status !== "partial_success") {
@@ -1250,42 +1473,13 @@ const downloadCSV = async () => {
                             <div className="script-content">
                               <pre>{loadscript}</pre>
                             </div>
-                            {/* DataSourcePath input — for CSV/QVD file sources */}
-                            <div style={{
-                              display: "flex",
-                              flexDirection: "column",
-                              gap: "4px",
-                              marginBottom: "10px",
-                              padding: "10px 12px",
-                              background: "#f0f9ff",
-                              borderRadius: "6px",
-                              border: "1px solid #bae6fd",
-                            }}>
-                              <label style={{ fontSize: "12px", fontWeight: 600, color: "#0369a1" }}>
-                                📁 Data Source Path <span style={{ fontWeight: 400, color: "#64748b" }}>(optional)</span>
-                              </label>
-                              <input
-                                type="text"
-                                value={dataSourcePath}
-                                onChange={(e) => setDataSourcePath(e.target.value)}
-                                placeholder="e.g. C:/Data  or  /mnt/data  or  https://blob.core.windows.net/container"
-                                style={{
-                                  padding: "6px 10px",
-                                  fontSize: "12px",
-                                  fontFamily: "monospace",
-                                  border: "1px solid #cbd5e1",
-                                  borderRadius: "4px",
-                                  outline: "none",
-                                  width: "100%",
-                                  boxSizing: "border-box" as const,
-                                  background: "#fff",
-                                }}
-                              />
-                              <span style={{ fontSize: "11px", color: "#64748b", lineHeight: "1.4" }}>
-                                Replaces <code style={{background:"#e2e8f0",padding:"1px 4px",borderRadius:"3px"}}>[DataSourcePath]</code> in the M Query.
-                                Used for CSV/QVD sources. Leave blank to keep the placeholder — you can define it as a Query Parameter in Power BI Desktop later.
-                              </span>
-                            </div>
+                            {/* SharePoint URL + Folder Picker */}
+                            <SharePointFolderPicker
+                              dataSourcePath={dataSourcePath}
+                              setDataSourcePath={setDataSourcePath}
+                              selectedFolder={selectedSpFolder}
+                              setSelectedFolder={setSelectedSpFolder}
+                            />
 
                             <button
                               onClick={handleConvertToMQuery}
@@ -1902,4 +2096,6 @@ export const SummaryReport: React.FC<SummaryReportProps> = ({
 
     </div>
   );
-};
+}
+
+export default SummaryPage;

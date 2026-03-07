@@ -183,9 +183,9 @@
         "name": "Dealer_Master",
         "columns": [
           {
-            "name": "DealerID-ServiceID",
+            "name": "DealerID",
             "dataType": "string",
-            "sourceColumn": "DealerID-ServiceID",
+            "sourceColumn": "DealerID",
             "summarizeBy": "none",
             "annotations": [
               {
@@ -241,18 +241,6 @@
                 "value": "Automatic"
               }
             ]
-          },
-          {
-            "name": "City_GeoInfo",
-            "dataType": "string",
-            "sourceColumn": "City_GeoInfo",
-            "summarizeBy": "none",
-            "annotations": [
-              {
-                "name": "SummarizationSetBy",
-                "value": "Automatic"
-              }
-            ]
           }
         ],
         "partitions": [
@@ -281,12 +269,11 @@
                 "    TypedTable = Table.TransformColumnTypes(",
                 "        PromotedHeaders,",
                 "        {",
-                "        {\"DealerID-ServiceID\", type text},",
+                "        {\"DealerID\", type text},",
                 "        {\"DealerName\", type text},",
                 "        {\"City\", type text},",
                 "        {\"Phone\", type text},",
-                "        {\"Email\", type text},",
-                "        {\"City_GeoInfo\", type text}",
+                "        {\"Email\", type text}",
                 "        }",
                 "    )",
                 "in",
@@ -365,9 +352,9 @@
         "name": "Service_History",
         "columns": [
           {
-            "name": "DealerID-ServiceID",
+            "name": "ServiceID",
             "dataType": "string",
-            "sourceColumn": "DealerID-ServiceID",
+            "sourceColumn": "ServiceID",
             "summarizeBy": "none",
             "annotations": [
               {
@@ -451,7 +438,7 @@
                 "    TypedTable = Table.TransformColumnTypes(",
                 "        PromotedHeaders,",
                 "        {",
-                "        {\"DealerID-ServiceID\", type text},",
+                "        {\"ServiceID\", type text},",
                 "        {\"VehicleID\", type text},",
                 "        {\"ServiceDate\", type text},",
                 "        {\"ServiceType\", type text},",

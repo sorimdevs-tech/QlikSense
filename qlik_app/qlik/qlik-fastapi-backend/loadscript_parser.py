@@ -255,7 +255,8 @@ def _parse_inline_block(inline_text: str) -> Tuple[List[Dict], Dict]:
 
     options = {
         'inline_headers':   headers,
-        'inline_sample':    sample_rows[:5],
+        'inline_sample':    sample_rows[:5],  # preview only
+        'inline_rows_all':  sample_rows,  # ALL rows for M Query embedding
         'inline_row_count': len(lines) - 1,
     }
     return fields, options

@@ -1,3 +1,1033 @@
+
+
+# """
+# powerbi_publisher.py  -  QlikAI Accelerator
+# Publishes a semantic model to Microsoft Fabric / Power BI Premium workspace.
+
+# Strategy:
+#   1. Fabric Items API  (POST /v1/workspaces/{id}/semanticModels)
+#      - Requires: definition.pbism (version 1.0) + model.bim (TMSL V3)
+#      - model.bim MUST have compatibilityLevel=1550, defaultPowerBIDataSourceVersion="powerBI_V3"
+#      - Tables MUST have explicit columns (Fabric does NOT infer from M on create)
+#   2. Push Dataset API  (fallback - limited, no M Query)
+
+# Auth: Service Principal client credentials (silent - no user interaction).
+
+# FIXES (v2):
+#   - Qlik-qualified column names (Table.Column) stripped to plain column name in BIM
+#   - Composite key columns (DealerID-ServiceID) always typed as string, never integer
+#   - Field extraction now handles SharePoint.Files() M expressions correctly
+# """
+
+# from ast import expr
+# import base64
+# import json
+# import logging
+# import os
+# import re
+# import time
+# from typing import Any, Dict, List, Optional
+
+# import requests
+
+# logger = logging.getLogger(__name__)
+
+# # ─────────────────────────────────────────────────────────────────────────────
+# # Public entry point
+# # ─────────────────────────────────────────────────────────────────────────────
+
+# def publish_semantic_model(
+#     dataset_name: str,
+#     tables_m: List[Dict[str, Any]],
+#     relationships: List[Dict[str, Any]] = None,
+#     access_token: str = "",
+#     data_source_path: str = "",
+#     db_connection_string: str = "",
+#     workspace_id: str = "",
+# ) -> Dict[str, Any]:
+#     """
+#     Publish tables as a Power BI semantic model.
+
+#     Each item in tables_m must have:
+#         name         - table name
+#         m_expression - full M Query (let ... in ...)
+#         source_type  - 'inline' | 'csv' | 'qvd' | 'sql' | 'resident'
+#         fields       - list of {name, type} dicts  <- used to build columns in BIM
+#     """
+#     relationships = relationships or []
+
+#     if not workspace_id:
+#         workspace_id = os.getenv("POWERBI_WORKSPACE_ID", "")
+#     if not workspace_id:
+#         return {"success": False, "error": "POWERBI_WORKSPACE_ID not set"}
+
+#     if db_connection_string:
+#         tables_m = _rewrite_for_db_connect(tables_m, db_connection_string)
+
+#     token = access_token or _acquire_sp_token()
+#     return _Publisher(workspace_id=workspace_id, access_token=token).publish(
+#         dataset_name, tables_m, relationships, data_source_path
+#     )
+
+
+# # ─────────────────────────────────────────────────────────────────────────────
+# # Auth
+# # ─────────────────────────────────────────────────────────────────────────────
+
+# def _acquire_sp_token(
+#     scope: str = "https://analysis.windows.net/powerbi/api/.default",
+# ) -> str:
+#     """Acquire token via Service Principal (client credentials)."""
+#     try:
+#         import msal
+#         tenant_id     = os.getenv("POWERBI_TENANT_ID", "")
+#         client_id     = os.getenv("POWERBI_CLIENT_ID", "")
+#         client_secret = os.getenv("POWERBI_CLIENT_SECRET", "")
+#         if not all([tenant_id, client_id, client_secret]):
+#             logger.warning("[Auth] SP credentials missing from environment")
+#             return ""
+#         app = msal.ConfidentialClientApplication(
+#             client_id,
+#             authority=f"https://login.microsoftonline.com/{tenant_id}",
+#             client_credential=client_secret,
+#         )
+#         result = app.acquire_token_for_client(scopes=[scope])
+#         token = result.get("access_token", "")
+#         if token:
+#             logger.info("[Auth] SP token acquired: %s", scope)
+#         else:
+#             logger.warning("[Auth] SP token failed: %s", result.get("error_description"))
+#         return token
+#     except Exception as exc:
+#         logger.warning("[Auth] SP token error: %s", exc)
+#         return ""
+
+
+# def initiate_device_code_flow() -> Dict[str, Any]:
+#     try:
+#         import msal
+#         tenant_id = os.getenv("POWERBI_TENANT_ID", "")
+#         client_id = os.getenv("POWERBI_CLIENT_ID", "")
+#         app = msal.PublicClientApplication(
+#             client_id,
+#             authority=f"https://login.microsoftonline.com/{tenant_id}",
+#         )
+#         flow = app.initiate_device_flow(
+#             scopes=["https://analysis.windows.net/powerbi/api/.default"]
+#         )
+#         _cache_device_flow(flow)
+#         return {
+#             "success": True,
+#             "device_code_url": "https://microsoft.com/devicelogin",
+#             "user_code": flow.get("user_code", ""),
+#             "message": flow.get("message", ""),
+#         }
+#     except Exception as exc:
+#         return {"success": False, "error": str(exc)}
+
+
+# def complete_device_code_flow() -> Dict[str, Any]:
+#     try:
+#         import msal
+#         flow = _load_device_flow()
+#         if not flow:
+#             return {"success": False, "error": "No pending device code flow"}
+#         tenant_id = os.getenv("POWERBI_TENANT_ID", "")
+#         client_id = os.getenv("POWERBI_CLIENT_ID", "")
+#         app = msal.PublicClientApplication(
+#             client_id,
+#             authority=f"https://login.microsoftonline.com/{tenant_id}",
+#         )
+#         result = app.acquire_token_by_device_flow(flow)
+#         token = result.get("access_token", "")
+#         if token:
+#             _cache_user_token(token)
+#             _clear_device_flow()
+#             return {"success": True, "access_token": token}
+#         return {"success": False, "error": result.get("error_description", "unknown")}
+#     except Exception as exc:
+#         return {"success": False, "error": str(exc)}
+
+
+# def get_cached_user_token() -> str:
+#     try:
+#         path = _token_cache_path()
+#         if os.path.exists(path):
+#             data = json.loads(open(path).read())
+#             if time.time() < data.get("expires_at", 0):
+#                 return data.get("token", "")
+#     except Exception:
+#         pass
+#     return ""
+
+
+# # ─────────────────────────────────────────────────────────────────────────────
+# # DB Connect rewriter
+# # ─────────────────────────────────────────────────────────────────────────────
+
+# def _rewrite_for_db_connect(
+#     tables_m: List[Dict[str, Any]], connection: str
+# ) -> List[Dict[str, Any]]:
+#     out = []
+#     for t in tables_m:
+#         src = t.get("source_type", "").lower()
+#         expr = t.get("m_expression", "")
+#         if src == "resident" or "Table.NestedJoin" in expr:
+#             out.append(t)
+#             continue
+#         if src in ("sql", "odbc") or "Sql.Database" in expr or "Odbc.Query" in expr:
+#             out.append(t)
+#             continue
+#         new_expr = (
+#             f'let\n'
+#             f'    Source = Odbc.Query("{connection}", "SELECT * FROM [{t["name"]}]"),\n'
+#             f'    Result = Source\nin\n    Result'
+#         )
+#         out.append({**t, "m_expression": new_expr, "source_type": "odbc"})
+#     return out
+
+
+# # ─────────────────────────────────────────────────────────────────────────────
+# # Helper functions
+# # ─────────────────────────────────────────────────────────────────────────────
+
+# _QLIK_TO_TABULAR = {
+#     "integer":   "int64",
+#     "float":     "double",
+#     "money":     "decimal",
+#     "date":      "dateTime",
+#     "datetime":  "dateTime",
+#     "timestamp": "dateTime",
+#     "boolean":   "boolean",
+#     "bool":      "boolean",
+#     "number":    "double",
+# }
+
+
+# def _tabular_type(qlik_type: str) -> str:
+#     return _QLIK_TO_TABULAR.get((qlik_type or "").lower(), "string")
+
+
+# def _strip_qlik_qualifier(col_name: str) -> str:
+#     """
+#     Strip Qlik table-qualified prefix from column name.
+    
+#     'Dealer_Master.City_GeoInfo'  →  'City_GeoInfo'
+#     'Model_Master.ModelID'        →  'ModelID'
+#     'DealerID-ServiceID'          →  'DealerID-ServiceID'  (composite key, no change)
+#     '#"Something"'                →  '#"Something"'        (escaped, no change)
+    
+#     This is critical: the actual CSV column name is just 'City_GeoInfo',
+#     NOT the Qlik-qualified 'Dealer_Master.City_GeoInfo'. Using the qualified
+#     name as a BIM column causes column-not-found errors at query time.
+#     """
+#     if not col_name or col_name.startswith("#"):
+#         return col_name
+#     # Only strip if dot present AND no hyphen (composite keys like DealerID-ServiceID keep their name)
+#     if "." in col_name and "-" not in col_name:
+#         return col_name.split(".", 1)[-1]
+#     return col_name
+
+
+# def _infer_type_from_name(name: str) -> str:
+#     """Infer type from column name heuristics.
+
+#     Rules:
+#     - Fields containing '-' are composite keys (DealerID-ServiceID) → always string
+#     - Qlik qualified names like Table.FieldName → strip prefix first
+#     - Fields ending with 'Number' (EngineNumber, ChassisNumber) → string, not integer
+#     """
+#     # Composite key → always string
+#     if "-" in name:
+#         return "string"
+#     # Strip Qlik table-qualified prefix
+#     n = name.split(".")[-1].lower().strip() if "." in name else name.lower().strip()
+#     if any(x in n for x in ["date", "time", "timestamp", "created", "updated", "dob", "birth"]):
+#         return "date"
+#     if any(x in n for x in ["price", "cost", "amount", "revenue", "salary", "rate", "total", "tax", "discount", "margin"]):
+#         return "number"
+#     # "number" suffix (e.g. EngineNumber, ChassisNumber, Phone) → string
+#     if n.endswith("number") or n.endswith("phone") or n.endswith("code"):
+#         return "string"
+#     if any(x in n for x in ["qty", "quantity", "year", "month", "day", "age", "rank", "km", "tons", "knots", "cc", "speed"]):
+#         return "integer"
+#     # Only plain "id" at end → integer (not "modelid" with table prefix)
+#     if n == "id" or (n.endswith("_id") and not n.endswith("number")):
+#         return "integer"
+#     if "count" in n:
+#         return "integer"
+#     return "string"
+
+
+# def _extract_fields_from_m(expr: str) -> list:
+#     """Extract column names and types from M expression.
+
+#     Handles multiple patterns:
+#     1. Table.TransformColumnTypes (from mquery_converter - most common)
+#     2. type table [...] (for #table() inline definitions)
+#     3. SharePoint.Files() patterns (same structure, just different Source)
+
+#     KEY FIX: Qlik-qualified field names like 'Dealer_Master.City_GeoInfo' are
+#     stripped to just 'City_GeoInfo' — matching the actual CSV column name.
+#     Composite key fields like 'DealerID-ServiceID' stay as-is and are always string.
+#     """
+#     type_map = {
+#         "text": "string",
+#         "number": "number",
+#         "date": "date",
+#         "datetime": "datetime",
+#         "logical": "boolean",
+#         "Int64.Type": "integer",
+#         "type text": "string",
+#         "type number": "number",
+#         "type date": "date",
+#         "type datetime": "datetime",
+#         "type logical": "boolean",
+#     }
+
+#     fields = []
+
+#     # Pattern 1: Table.TransformColumnTypes — most common output from mquery_converter
+#     # Matches: {"ColumnName", type text} or {"ColumnName", Int64.Type}
+#     transform_pattern = r'Table\.TransformColumnTypes\s*\(\s*[^,]+?\s*,\s*\{\s*(.+?)\s*\}\s*\)'
+#     match = re.search(transform_pattern, expr, re.DOTALL)
+#     if match:
+#         cols_str = match.group(1)
+#         logger.info("[Extract] Found Table.TransformColumnTypes pattern")
+
+#         col_pattern = r'\{\s*"([^"]+)"\s*,\s*(Int64\.Type|type\s+\w+)\s*\}'
+#         for col_match in re.finditer(col_pattern, cols_str):
+#             raw_name = col_match.group(1)
+#             # CRITICAL: strip Qlik-qualified prefix → use plain CSV column name
+#             col_name = _strip_qlik_qualifier(raw_name)
+#             col_type_raw = col_match.group(2).strip()
+#             col_type = type_map.get(col_type_raw, "string")
+
+#             # Composite key → always string
+#             if "-" in raw_name:
+#                 col_type = "string"
+#             elif col_type == "string":
+#                 col_type = _infer_type_from_name(col_name)
+
+#             fields.append({"name": col_name, "type": col_type})
+            
+#             # Log when we strip a Qlik qualifier (helps debug)
+#             if col_name != raw_name:
+#                 logger.info("[Extract] Stripped Qlik qualifier: '%s' → '%s'", raw_name, col_name)
+
+#         if fields:
+#             logger.info("[Extract] Extracted %d fields from TransformColumnTypes: %s",
+#                         len(fields), [f["name"] for f in fields])
+#             return fields
+
+#     # Pattern 2: type table [...] for #table() inline definitions
+#     match = re.search(r"type\s+table\s+\[(.+?)\]", expr, re.DOTALL)
+#     if match:
+#         cols_str = match.group(1)
+#         logger.info("[Extract] Found type table pattern")
+
+#         for part in cols_str.split(","):
+#             part = part.strip()
+#             if "=" not in part:
+#                 continue
+#             try:
+#                 raw_name = part.split("=")[0].strip().strip('#').strip('"')
+#                 col_name = _strip_qlik_qualifier(raw_name)
+#                 col_type_raw = part.split("=")[1].strip()
+#                 col_type = type_map.get(col_type_raw, "string")
+#                 if "-" in raw_name:
+#                     col_type = "string"
+#                 elif col_type == "string":
+#                     col_type = _infer_type_from_name(col_name)
+#                 fields.append({"name": col_name, "type": col_type})
+#             except Exception:
+#                 continue
+
+#         if fields:
+#             logger.info("[Extract] Extracted %d fields from type table: %s",
+#                         len(fields), [f["name"] for f in fields])
+#             return fields
+
+#     # Pattern 3: SharePoint.Files or PromoteHeaders without TransformColumnTypes
+#     if "SharePoint.Files" in expr or "PromoteHeaders" in expr or "PromotedHeaders" in expr:
+#         logger.info("[Extract] Detected SharePoint/PromoteHeaders source - schema inferred at runtime")
+#         return []
+
+#     logger.warning("[Extract] Could not extract fields from M expression - will use placeholder")
+#     return []
+
+
+# def _fix_multiline_rows(expr: str) -> str:
+#     """
+#     Ensure every data row in a #table() M expression is on a single line.
+#     Also adds error handling for empty SharePoint file filter results.
+#     """
+#     lines = expr.split("\n")
+#     result = []
+#     in_row = False
+#     current_row = ""
+
+#     for line in lines:
+#         stripped = line.strip()
+
+#         if in_row:
+#             current_row += " " + stripped
+#             if re.search(r'\}\s*,?\s*$', stripped):
+#                 result.append(current_row)
+#                 current_row = ""
+#                 in_row = False
+#         else:
+#             if stripped.startswith('{"') or stripped.startswith("{'"):
+#                 if re.search(r'\}\s*,?\s*$', stripped):
+#                     result.append(line)
+#                 else:
+#                     in_row = True
+#                     current_row = line.rstrip()
+#             else:
+#                 result.append(line)
+
+#     if current_row:
+#         result.append(current_row)
+
+#     return "\n".join(result)
+
+
+# def _sanitize_m(expr: str) -> str:
+#     """
+#     Clean M expression before sending to Fabric API.
+#     Fixes:
+#     1. 'Sourcelet' corruption -> split into proper let block
+#     2. Strips any leading comment lines (// Table: ...)
+#     3. Ensures expression starts with 'let'
+#     """
+#     import re
+
+#     # Remove leading comment lines like // Table: Name [csv]
+#     lines = expr.strip().splitlines()
+#     clean_lines = []
+#     for line in lines:
+#         stripped = line.strip()
+#         if stripped.startswith("//"):
+#             continue
+#         clean_lines.append(line)
+#     expr = "\n".join(clean_lines).strip()
+
+#     # Fix "Sourcelet" corruption - happens when two let blocks merge
+#     # Pattern: "in\n    Sourcelet\n    Source = ..." -> keep only second let block
+#     if "Sourcelet" in expr:
+#         # Find where the real let block starts (after Sourcelet)
+#         idx = expr.find("Sourcelet")
+#         # The real M starts at "let\n" before "Source = SharePoint"
+#         real_let_idx = expr.find("let", idx)
+#         if real_let_idx != -1:
+#             expr = expr[real_let_idx:]
+#             logger.info("[sanitize_m] Fixed Sourcelet corruption - extracted real let block")
+
+#     # Ensure it starts with let
+#     if not expr.strip().startswith("let"):
+#         # Try to find let anywhere
+#         idx = expr.find("let")
+#         if idx != -1:
+#             expr = expr[idx:]
+
+#     return expr.strip()
+
+
+# # ─────────────────────────────────────────────────────────────────────────────
+# # Publisher
+# # ─────────────────────────────────────────────────────────────────────────────
+
+# class _Publisher:
+
+#     def __init__(self, workspace_id: str, access_token: str = ""):
+#         self.workspace_id = workspace_id
+#         self.token = access_token
+#         self.pbi_headers = {
+#             "Authorization": f"Bearer {self.token}",
+#             "Content-Type": "application/json",
+#         }
+
+#     # -- main entry -----------------------------------------------------------
+
+#     def publish(
+#         self,
+#         dataset_name: str,
+#         tables_m: List[Dict[str, Any]],
+#         relationships: List[Dict[str, Any]],
+#         data_source_path: str,
+#     ) -> Dict[str, Any]:
+#         if not self.token:
+#             flow = initiate_device_code_flow()
+#             return {
+#                 "success": False, "auth_required": True,
+#                 "device_code_url": flow.get("device_code_url"),
+#                 "user_code": flow.get("user_code"),
+#                 "message": flow.get("message", ""),
+#                 "error": "Authentication required.",
+#             }
+
+#         result = self._deploy_via_fabric(dataset_name, tables_m, relationships, data_source_path)
+#         if result.get("success"):
+#             return result
+
+#         logger.warning("[Publisher] Fabric API failed (%s) — Push dataset fallback", result.get("error"))
+#         return self._deploy_push_dataset(dataset_name, tables_m)
+
+#     # -- BIM builder ----------------------------------------------------------
+
+#     def _build_bim(
+#         self,
+#         dataset_name: str,
+#         tables_m: List[Dict[str, Any]],
+#         relationships: List[Dict[str, Any]],
+#         data_source_path: str,
+#     ) -> str:
+#         tmd_tables = []
+#         for t in tables_m:
+#             expr = t.get("m_expression", "").strip()
+#             if not expr:
+#                 continue
+#             logger.info("==== RAW M FROM tables_m FOR TABLE %s ====", t["name"])
+#             logger.info("\n%s\n", expr)
+
+#             fields = t.get("fields", [])
+#             logger.info("[BIM] Table '%s' raw fields from tables_m: %s", t["name"], fields)
+
+#             if not fields:
+#                 fields = _extract_fields_from_m(expr)
+#                 logger.info("[BIM] Extracted fields for '%s': %s", t["name"], fields)
+#             else:
+#                 # CRITICAL: Even when fields are provided, strip Qlik-qualified names
+#                 # to match what the M query actually produces as column names.
+#                 fixed_fields = []
+#                 for f in fields:
+#                     raw_name = f.get("name", "")
+#                     plain_name = _strip_qlik_qualifier(raw_name)
+#                     # Composite keys always string
+#                     ftype = f.get("type", "string")
+#                     if "-" in raw_name:
+#                         ftype = "string"
+#                     fixed_fields.append({"name": plain_name, "type": ftype})
+#                     if plain_name != raw_name:
+#                         logger.info("[BIM] Fixed column name: '%s' → '%s'", raw_name, plain_name)
+#                 fields = fixed_fields
+#                 logger.info("[BIM] Fixed fields for '%s': %s", t["name"], fields)
+
+#             columns = []
+#             for f in fields:
+#                 columns.append({
+#                     "name": f["name"],
+#                     "dataType": _tabular_type(f.get("type", "string")),
+#                     "sourceColumn": f["name"],
+#                     "summarizeBy": "none",
+#                     "annotations": [{"name": "SummarizationSetBy", "value": "Automatic"}]
+#                 })
+
+#             if not columns:
+#                 columns = [{
+#                     "name": "Value",
+#                     "dataType": "string",
+#                     "sourceColumn": "Value",
+#                     "summarizeBy": "none",
+#                     "annotations": [{"name": "SummarizationSetBy", "value": "Automatic"}]
+#                 }]
+
+#             fixed_expr = _fix_multiline_rows(_sanitize_m(expr))
+#             logger.info("==== FINAL M SENT TO FABRIC FOR TABLE %s ====", t["name"])
+#             logger.info("\n%s\n", fixed_expr)
+#             tmd_tables.append({
+#                 "name": t["name"],
+#                 "columns": columns,
+#                 "partitions": [{
+#                     "name": f"{t['name']}-Partition",
+#                     "mode": "import",
+#                     "source": {
+#                         "type": "m",
+#                         "expression": fixed_expr.splitlines()
+#                     }
+#                 }]
+#             })
+
+#         tmd_rels = []
+#         for r in relationships:
+#             ft = r.get("fromTable") or r.get("from_table", "")
+#             fc = r.get("fromColumn") or r.get("from_column", "")
+#             tt = r.get("toTable")   or r.get("to_table", "")
+#             tc = r.get("toColumn")  or r.get("to_column", "")
+#             # CRITICAL: Strip Qlik-qualified names from relationship columns too
+#             fc = _strip_qlik_qualifier(fc)
+#             tc = _strip_qlik_qualifier(tc)
+#             if ft and fc and tt and tc:
+#                 tmd_rels.append({
+#                     "name": f"{ft}_{fc}_{tt}_{tc}",
+#                     "fromTable": ft, "fromColumn": fc,
+#                     "toTable": tt,   "toColumn": tc,
+#                     "crossFilteringBehavior": "oneDirection"
+#                 })
+
+#         expressions = []
+#         if data_source_path:
+#             expressions.append({
+#                 "name": "DataSourcePath",
+#                 "kind": "m",
+#                 "expression": [f'"{data_source_path}"']
+#             })
+
+#         bim = {
+#             "name": dataset_name,
+#             "compatibilityLevel": 1550,
+#             "model": {
+#                 "culture": "en-US",
+#                 "dataAccessOptions": {
+#                     "legacyRedirects": True,
+#                     "returnErrorValuesAsNull": True
+#                 },
+#                 "defaultPowerBIDataSourceVersion": "powerBI_V3",
+#                 "sourceQueryCulture": "en-US",
+#                 "tables": tmd_tables,
+#                 "relationships": tmd_rels,
+#                 "expressions": expressions,
+#                 "annotations": [
+#                     {"name": "PBIDesktopVersion", "value": "2.130.930.0"},
+#                     {"name": "createdBy", "value": "QlikAI_Accelerator"},
+#                 ]
+#             }
+#         }
+#         return json.dumps(bim, ensure_ascii=False, indent=2)
+
+#     # -- Strategy 1: Fabric Items API -----------------------------------------
+
+#     def _deploy_via_fabric(
+#         self,
+#         dataset_name: str,
+#         tables_m: List[Dict[str, Any]],
+#         relationships: List[Dict[str, Any]],
+#         data_source_path: str,
+#     ) -> Dict[str, Any]:
+#         try:
+#             fabric_token = _acquire_sp_token("https://api.fabric.microsoft.com/.default")
+#             if not fabric_token:
+#                 fabric_token = self.token
+
+#             headers = {
+#                 "Authorization": f"Bearer {fabric_token}",
+#                 "Content-Type": "application/json",
+#             }
+
+#             bim_json = self._build_bim(dataset_name, tables_m, relationships, data_source_path)
+#             with open("debug_model.bim", "w", encoding="utf-8") as f:
+#                 f.write(bim_json)
+#             bim_b64   = base64.b64encode(bim_json.encode("utf-8")).decode("ascii")
+#             pbism_b64 = base64.b64encode(b'{"version":"1.0"}').decode("ascii")
+
+#             payload = {
+#                 "displayName": dataset_name,
+#                 "definition": {
+#                     "parts": [
+#                         {"path": "definition.pbism", "payload": pbism_b64, "payloadType": "InlineBase64"},
+#                         {"path": "model.bim",        "payload": bim_b64,   "payloadType": "InlineBase64"},
+#                     ]
+#                 }
+#             }
+
+#             url = (
+#                 f"https://api.fabric.microsoft.com/v1/workspaces"
+#                 f"/{self.workspace_id}/semanticModels"
+#             )
+#             logger.info("[Fabric API] POST %s", url)
+
+#             bim_obj = json.loads(bim_json)
+#             for tbl in bim_obj.get("model", {}).get("tables", []):
+#                 parts = tbl.get("partitions", [{}])
+#                 expr_lines = parts[0].get("source", {}).get("expression", [])
+#                 expr_preview = "\n".join(expr_lines)[:1000]
+#                 logger.info("[Fabric API] Table '%s' M expression:\n%s", tbl["name"], expr_preview)
+
+#             resp = requests.post(url, headers=headers, json=payload, timeout=60)
+#             logger.info("[Fabric API] Response: %d %s", resp.status_code, resp.text[:400])
+
+#             if resp.status_code in (200, 201, 202):
+#                 dataset_id = ""
+
+#                 location_header = resp.headers.get("Location") or resp.headers.get("location")
+#                 if location_header:
+#                     match = re.search(r"[0-9a-fA-F-]{36}", location_header)
+#                     if match:
+#                         dataset_id = match.group(0)
+#                         logger.info("[Fabric API] Dataset ID from initial header: %s", dataset_id)
+
+#                 if resp.status_code == 202:
+#                     op_url = resp.headers.get("Location")
+#                     polled_id = self._poll(op_url, headers) if op_url else ""
+#                     if polled_id == "SUCCEEDED_NO_ID":
+#                         dataset_id = ""
+#                 else:
+#                     dataset_id = (resp.json() if resp.text.strip() else {}).get("id", "")
+
+#                 # After polling/response, must lookup actual semantic model ID by name
+#                 # The Location header ID is the Operation ID (temporary), NOT the model ID
+#                 if not dataset_id or dataset_id == "SUCCEEDED_NO_ID":
+#                     dataset_id = self._find_dataset_id(dataset_name, headers)
+#                     logger.info("[Fabric API] Looked up semantic model ID: %s", dataset_id)
+
+#                 if dataset_id:
+#                     logger.info("[Fabric API] Created: %s", dataset_id)
+                    
+#                     # Trigger refresh using Power BI API (NOT Fabric Items API)
+#                     pbi_token = _acquire_sp_token("https://analysis.windows.net/powerbi/api/.default")
+#                     pbi_headers = {
+#                         "Authorization": f"Bearer {pbi_token}",
+#                         "Content-Type": "application/json",
+#                     }
+#                     # Auto takeover + refresh — run in background so API returns immediately
+#                     # Poll happens asynchronously; check server logs for "[Refresh Poll] ✅"
+#                     import threading as _threading
+#                     _refresh_thread = _threading.Thread(
+#                         target=self._takeover_and_refresh,
+#                         args=(dataset_id, pbi_headers),
+#                         daemon=True,
+#                         name=f"refresh-{dataset_id[:8]}",
+#                     )
+#                     _refresh_thread.start()
+#                     logger.info("[Fabric API] 🔄 Refresh started in background thread (daemon=True)")
+
+#                     return {
+#                         "success": True,
+#                         "method": "fabric_items_api",
+#                         "dataset_id": dataset_id,
+#                         "dataset_name": dataset_name,
+#                         "workspace_url": f"https://app.powerbi.com/groups/{self.workspace_id}",
+#                         "dataset_url": (
+#                             f"https://app.powerbi.com/groups/{self.workspace_id}"
+#                             f"/datasets/{dataset_id}"
+#                         ),
+#                         "message": (
+#                             f"Semantic model '{dataset_name}' deployed via Fabric API "
+#                             f"with {len(tables_m)} table(s) and full M Query support."
+#                         ),
+#                     }
+#                 return {"success": False, "error": "Async op succeeded but no dataset ID returned"}
+
+#             return {"success": False, "error": f"HTTP {resp.status_code}: {resp.text[:400]}"}
+
+#         except Exception as exc:
+#             logger.exception("[Fabric API] Unexpected error")
+#             return {"success": False, "error": str(exc)}
+
+#     def _poll(self, op_url: str, headers: Dict, max_wait: int = 120) -> str:
+#         logger.info("[Fabric API] Polling: %s", op_url)
+#         for i in range(max_wait // 3):
+#             time.sleep(3)
+#             try:
+#                 r = requests.get(op_url, headers=headers, timeout=15)
+#                 if r.ok:
+#                     body = r.json()
+#                     status = body.get("status", "")
+#                     logger.info("[Fabric API] Poll %d: %s", i + 1, status)
+#                     if status == "Succeeded":
+#                         logger.info("[Fabric API] Full success body: %s", json.dumps(body))
+#                         return "SUCCEEDED_NO_ID"
+#                     if status in ("Failed", "Cancelled"):
+#                         logger.warning("[Fabric API] Op %s: %s", status, body)
+#                         return ""
+#             except Exception as ex:
+#                 logger.warning("[Fabric API] Poll error: %s", ex)
+#         logger.warning("[Fabric API] Polling timed out after %ds", max_wait)
+#         return ""
+
+#     def _find_dataset_id(self, dataset_name: str, headers: Dict) -> str:
+#         """Look up a semantic model by name in the workspace.
+        
+#         CRITICAL: After async model creation (202 response), the Location header
+#         contains an Operation ID (temporary). We must query the workspace to get
+#         the REAL semantic model ID to use for subsequent operations like refresh.
+#         """
+#         try:
+#             url = f"https://api.fabric.microsoft.com/v1/workspaces/{self.workspace_id}/semanticModels"
+#             logger.info("[Fabric API] Looking up real semantic model ID by name: %s", dataset_name)
+#             r = requests.get(url, headers=headers, timeout=15)
+#             if r.ok:
+#                 items = r.json().get("value", [])
+#                 logger.info("[Fabric API] Found %d semantic models in workspace", len(items))
+#                 for item in items:
+#                     display_name = item.get("displayName", "")
+#                     item_id = item.get("id", "")
+#                     if display_name == dataset_name:
+#                         logger.info("[Fabric API] ✅ Matched '%s' → ID: %s", display_name, item_id)
+#                         return item_id
+#                 logger.warning("[Fabric API] ⚠️  No semantic model found with name: %s", dataset_name)
+#             else:
+#                 logger.warning("[Fabric API] Lookup failed: %d %s", r.status_code, r.text[:200])
+#         except Exception as ex:
+#             logger.warning("[Fabric API] Lookup error: %s", ex)
+#         return ""
+
+#     def _trigger_refresh(self, dataset_id: str, headers: Dict) -> bool:
+#         try:
+#             # Use Power BI API endpoint for semantic model refresh
+#             url = (
+#                 f"https://api.powerbi.com/v1.0/myorg/groups/"
+#                 f"{self.workspace_id}/datasets/{dataset_id}/refreshes"
+#             )
+
+#             logger.info("[Power BI API] Triggering refresh: POST %s", url)
+#             logger.info("[Power BI API] Using semantic model ID: %s", dataset_id)
+
+#             resp = requests.post(url, headers=headers, json={}, timeout=30)
+
+#             if resp.status_code in (200, 202):
+#                 logger.info("[Power BI API] ✅ Refresh triggered successfully - M query will execute and data will load")
+#                 return True
+#             elif resp.status_code == 404:
+#                 logger.warning("[Power BI API] ⚠️  404: Dataset not found. Verify the semantic model ID is correct")
+#                 return False
+#             else:
+#                 logger.warning(
+#                     "[Power BI API] Refresh failed: %d %s",
+#                     resp.status_code,
+#                     resp.text[:300]
+#                 )
+#                 return False
+
+#         except Exception as ex:
+#             logger.error("[Power BI API] Refresh error: %s", ex)
+#             return False
+
+#     def _takeover_and_refresh(self, dataset_id: str, pbi_headers: Dict) -> bool:
+#         """
+#         Full automated flow after model is published:
+#           1. Wait for model to register its datasources
+#           2. TAKE OVER the dataset (claim ownership) — removes manual credential step
+#           3. Update datasource credentials to OAuth2 (SharePoint)
+#           4. Trigger refresh
+#           5. Poll until Completed or Failed
+
+#         This eliminates the manual:
+#           "Go to Power BI → Settings → Data source credentials → Sign in"
+#         """
+#         import time as _time
+#         base_url = f"https://api.powerbi.com/v1.0/myorg/groups/{self.workspace_id}/datasets/{dataset_id}"
+
+#         # Step 1: Wait for datasources to register (model just published)
+#         logger.info("[Takeover] ⏳ Waiting 25s for datasources to register after publish...")
+#         _time.sleep(25)
+
+#         # Step 2: TAKE OVER the dataset — makes Service Principal the owner
+#         # Without this, credentials cannot be set programmatically
+#         logger.info("[Takeover] 🔑 Taking over dataset ownership (Service Principal)...")
+#         try:
+#             takeover_url = f"{base_url}/Default.TakeOver"
+#             tr = requests.post(takeover_url, headers=pbi_headers, json={}, timeout=30)
+#             if tr.status_code in (200, 202, 204):
+#                 logger.info("[Takeover] ✅ TakeOver succeeded (%d)", tr.status_code)
+#             elif tr.status_code == 403:
+#                 logger.warning("[Takeover] ⚠️  TakeOver 403 — SP may already be owner, continuing")
+#             else:
+#                 logger.warning("[Takeover] TakeOver returned %d: %s", tr.status_code, tr.text[:200])
+#         except Exception as ex:
+#             logger.warning("[Takeover] TakeOver error: %s — continuing anyway", ex)
+
+#         # Step 3: Get datasources and set OAuth2 credentials for SharePoint
+#         logger.info("[Takeover] 🔍 Fetching datasources...")
+#         try:
+#             r = requests.get(f"{base_url}/datasources", headers=pbi_headers, timeout=15)
+#             if r.ok:
+#                 datasources = r.json().get("value", [])
+#                 logger.info("[Takeover] Found %d datasource(s)", len(datasources))
+#                 for ds in datasources:
+#                     ds_type = ds.get("datasourceType", "")
+#                     ds_id   = ds.get("datasourceId", "")
+#                     gw_id   = ds.get("gatewayId", "")
+#                     logger.info("[Takeover]   Type=%-20s  ID=%s  GW=%s", ds_type, ds_id, gw_id)
+
+#                     # Update credentials for SharePoint sources to use OAuth2 (service account)
+#                     if ds_type in ("SharePoint", "SharePointList") and ds_id and gw_id:
+#                         logger.info("[Takeover] 🔐 Setting OAuth2 credentials for datasource %s", ds_id)
+#                         try:
+#                             cred_url = (
+#                                 f"https://api.powerbi.com/v1.0/myorg/gateways/{gw_id}"
+#                                 f"/datasources/{ds_id}"
+#                             )
+#                             cred_payload = {
+#                                 "credentialDetails": {
+#                                     "credentialType": "OAuth2",
+#                                     "credentials": "{}",      # Use Service Principal token
+#                                     "encryptedConnection": "Encrypted",
+#                                     "encryptionAlgorithm": "None",
+#                                     "privacyLevel": "Organizational",
+#                                 }
+#                             }
+#                             cr = requests.patch(
+#                                 cred_url, headers=pbi_headers,
+#                                 json=cred_payload, timeout=30
+#                             )
+#                             if cr.status_code in (200, 202, 204):
+#                                 logger.info("[Takeover] ✅ Credentials set for datasource %s", ds_id)
+#                             else:
+#                                 logger.warning(
+#                                     "[Takeover] Cred set failed %d: %s",
+#                                     cr.status_code, cr.text[:200]
+#                                 )
+#                         except Exception as cex:
+#                             logger.warning("[Takeover] Cred set error: %s", cex)
+#             else:
+#                 logger.warning("[Takeover] Could not get datasources: %d %s", r.status_code, r.text[:200])
+#         except Exception as ex:
+#             logger.warning("[Takeover] Datasource fetch error: %s", ex)
+
+#         # Step 4: Trigger refresh
+#         logger.info("[Takeover] 🔄 Triggering data refresh...")
+#         # Short wait to ensure credential update propagated
+#         _time.sleep(5)
+#         refreshed = self._trigger_refresh(dataset_id, pbi_headers)
+
+#         # Step 5: Poll until done (max 3 min — SharePoint refresh can be slow)
+#         if refreshed:
+#             status = self._poll_refresh_status(dataset_id, pbi_headers, max_wait=180)
+#             if status == "Completed":
+#                 logger.info("[Takeover] 🎉 Full automation complete — data is live in Power BI!")
+#             elif status == "Failed":
+#                 logger.warning(
+#                     "[Takeover] ❌ Refresh failed — go to Power BI Service → "
+#                     "Workspace → Dataset → Settings → Data source credentials → Sign in with SharePoint account"
+#                 )
+#         return refreshed
+
+#     def _poll_refresh_status(self, dataset_id: str, headers: Dict, max_wait: int = 90) -> str:
+#         """
+#         Poll refresh every 8s until Completed/Failed or timeout (default 2min).
+#         """
+#         import time as _time
+#         url = f"https://api.powerbi.com/v1.0/myorg/groups/{self.workspace_id}/datasets/{dataset_id}/refreshes"
+#         logger.info("[Refresh Poll] Polling every 8s (max %ds)...", max_wait)
+#         elapsed = 0
+#         while elapsed < max_wait:
+#             _time.sleep(8)
+#             elapsed += 8
+#             try:
+#                 r = requests.get(url, headers=headers, timeout=15)
+#                 if r.ok:
+#                     refreshes = r.json().get("value", [])
+#                     if not refreshes:
+#                         logger.info("[Refresh Poll] %ds — still queued...", elapsed)
+#                         continue
+#                     status = refreshes[0].get("status", "Unknown")
+#                     logger.info("[Refresh Poll] %ds — Status: %s", elapsed, status)
+#                     if status == "Completed":
+#                         logger.info("[Refresh Poll] ✅ Data loaded successfully!")
+#                         return "Completed"
+#                     if status == "Failed":
+#                         err = refreshes[0].get("serviceExceptionJson", "")
+#                         logger.warning("[Refresh Poll] ❌ Failed: %s", err[:300])
+#                         logger.warning("[Refresh Poll] Go to Power BI Settings → Data source credentials → Sign in")
+#                         return "Failed"
+#             except Exception as ex:
+#                 logger.warning("[Refresh Poll] Error: %s", ex)
+#         logger.warning("[Refresh Poll] Timed out — refresh may still run in background")
+#         return "Unknown"
+
+#     # -- Strategy 2: Push Dataset (fallback) ----------------------------------
+
+#     def _deploy_push_dataset(
+#         self,
+#         dataset_name: str,
+#         tables_m: List[Dict[str, Any]],
+#     ) -> Dict[str, Any]:
+#         try:
+#             tables_payload = []
+#             for t in tables_m:
+#                 fields = t.get("fields", [])
+#                 if fields:
+#                     cols = []
+#                     for f in fields:
+#                         plain_name = _strip_qlik_qualifier(f.get("name", ""))
+#                         ftype = f.get("type", "string")
+#                         if "-" in f.get("name", ""):
+#                             ftype = "string"
+#                         cols.append({"name": plain_name, "dataType": _tabular_type(ftype)})
+#                 else:
+#                     cols = [{"name": "Value", "dataType": "string"}]
+#                 tables_payload.append({"name": t["name"], "columns": cols})
+
+#             payload = {
+#                 "name": dataset_name,
+#                 "defaultMode": "Push",
+#                 "tables": tables_payload,
+#             }
+#             # url = f"https://api.powerbi.com/v1.0/myorg/groups/{self.workspace_id}/datasets"
+#             url = f"https://api.fabric.microsoft.com/v1/workspaces/{self.workspace_id}/items/{dataset_id}/refreshes"
+#             resp = requests.post(url, headers=self.pbi_headers, json=payload, timeout=30)
+
+#             if resp.status_code in (200, 201, 202):
+#                 dataset_id = resp.json().get("id", "")
+#                 return {
+#                     "success": True,
+#                     "method": "push_dataset_fallback",
+#                     "dataset_id": dataset_id,
+#                     "dataset_name": dataset_name,
+#                     "workspace_url": f"https://app.powerbi.com/groups/{self.workspace_id}",
+#                     "message": (
+#                         "Created via Push dataset fallback. "
+#                         "Fabric API failed - no M Query or Model View."
+#                     ),
+#                 }
+#             return {
+#                 "success": False,
+#                 "error": f"Push dataset failed: {resp.status_code} {resp.text[:300]}",
+#             }
+#         except Exception as exc:
+#             logger.exception("[Push] Error")
+#             return {"success": False, "error": str(exc)}
+
+
+# # ─────────────────────────────────────────────────────────────────────────────
+# # Token / flow cache helpers
+# # ─────────────────────────────────────────────────────────────────────────────
+
+# def _token_cache_path() -> str:
+#     return os.path.join(os.path.dirname(__file__), ".pb_token_cache.json")
+
+# def _device_flow_cache_path() -> str:
+#     return os.path.join(os.path.dirname(__file__), ".pb_device_flow.json")
+
+# def _cache_user_token(token: str):
+#     try:
+#         with open(_token_cache_path(), "w") as f:
+#             json.dump({"token": token, "expires_at": time.time() + 3500}, f)
+#     except Exception:
+#         pass
+
+# def _cache_device_flow(flow: Dict):
+#     try:
+#         with open(_device_flow_cache_path(), "w") as f:
+#             json.dump(flow, f)
+#     except Exception:
+#         pass
+
+# def _load_device_flow() -> Optional[Dict]:
+#     try:
+#         path = _device_flow_cache_path()
+#         if os.path.exists(path):
+#             with open(path) as f:
+#                 return json.load(f)
+#     except Exception:
+#         pass
+#     return None
+
+# def _clear_device_flow():
+#     try:
+#         path = _device_flow_cache_path()
+#         if os.path.exists(path):
+#             os.unlink(path)
+#     except Exception:
+#         pass
+
+
+
+
+
+
+
 # """
 # powerbi_publisher.py  -  QlikAI Accelerator
 # Publishes a semantic model to Microsoft Fabric / Power BI Premium workspace.
@@ -2196,8 +3226,16 @@ class _Publisher:
                         "Authorization": f"Bearer {pbi_token}",
                         "Content-Type": "application/json",
                     }
-                    self._trigger_refresh(dataset_id, pbi_headers)
-                    
+                    # Auto takeover + refresh in background thread — API returns immediately
+                    import threading as _threading
+                    _threading.Thread(
+                        target=self._takeover_and_refresh,
+                        args=(dataset_id, pbi_headers),
+                        daemon=True,
+                        name=f"refresh-{dataset_id[:8]}",
+                    ).start()
+                    logger.info("[Fabric API] 🔄 Refresh running in background thread")
+
                     return {
                         "success": True,
                         "method": "fabric_items_api",
@@ -2299,6 +3337,233 @@ class _Publisher:
         except Exception as ex:
             logger.error("[Power BI API] Refresh error: %s", ex)
             return False
+
+    def _set_sharepoint_credentials(self, dataset_id: str, pbi_headers: Dict) -> bool:
+        """
+        Set SharePoint credentials on the dataset using the correct Power BI API.
+
+        Power BI has TWO credential APIs:
+          A) Gateway API  — PATCH /gateways/{gw}/datasources/{ds}
+             → Only works for ON-PREMISE gateway datasources. Fails for cloud (SharePoint).
+          B) Dataset UpdateDatasource API — POST /datasets/{id}/Default.UpdateDatasources
+             → Works for CLOUD datasources (SharePoint, OneDrive). This is what we need.
+
+        Credential type options for SharePoint:
+          - "Windows"     -> domain/user + password (on-prem only)
+          - "Basic"       → username + password  ← works for SharePoint Online
+          - "OAuth2"      → interactive sign-in token (cannot be set headlessly by SP)
+          - "Anonymous"   → no credentials
+
+        We use "Basic" with the SharePoint account from env vars:
+          SHAREPOINT_USERNAME = ponnuchamy.vellaikannu@sorimtechnologies.com
+          SHAREPOINT_PASSWORD = (the account password)
+
+        Add these two lines to your .env file:
+          SHAREPOINT_USERNAME=ponnuchamy.vellaikannu@sorimtechnologies.com
+          SHAREPOINT_PASSWORD=YourPasswordHere
+        """
+        sp_username = os.getenv("SHAREPOINT_USERNAME", "")
+        sp_password = os.getenv("SHAREPOINT_PASSWORD", "")
+
+        if not sp_username or not sp_password:
+            logger.warning(
+                "[Creds] ⚠️  SHAREPOINT_USERNAME / SHAREPOINT_PASSWORD not in .env — "
+                "skipping credential set. Add them to automate this step."
+            )
+            return False
+
+        base_url = f"https://api.powerbi.com/v1.0/myorg/groups/{self.workspace_id}/datasets/{dataset_id}"
+
+        # Get the current datasources to find connectionDetails
+        try:
+            r = requests.get(f"{base_url}/datasources", headers=pbi_headers, timeout=15)
+            if not r.ok:
+                logger.warning("[Creds] Could not fetch datasources: %d", r.status_code)
+                return False
+            datasources = r.json().get("value", [])
+        except Exception as ex:
+            logger.warning("[Creds] Datasource fetch error: %s", ex)
+            return False
+
+        if not datasources:
+            logger.warning("[Creds] No datasources found on dataset")
+            return False
+
+        # Build UpdateDatasources payload — one entry per datasource
+        update_details = []
+        for ds in datasources:
+            ds_type = ds.get("datasourceType", "")
+            conn_details = ds.get("connectionDetails", {})
+            logger.info("[Creds] Processing datasource type=%s conn=%s", ds_type, conn_details)
+
+            if ds_type in ("SharePoint", "SharePointList", "SharePointFolder"):
+                update_details.append({
+                    "datasourceSelector": {
+                        "datasourceType": ds_type,
+                        "connectionDetails": conn_details,
+                    },
+                    "credentialDetails": {
+                        "credentialType": "Basic",
+                        "credentials": {
+                            "credentialData": [
+                                {"name": "username", "value": sp_username},
+                                {"name": "password", "value": sp_password},
+                            ]
+                        },
+                        "encryptedConnection": "Encrypted",
+                        "encryptionAlgorithm": "None",
+                        "privacyLevel": "Organizational",
+                        "useCallerAADIdentity": False,
+                    },
+                })
+                logger.info("[Creds] Added credential entry for %s datasource", ds_type)
+
+        if not update_details:
+            logger.warning("[Creds] No SharePoint datasources found to update credentials for")
+            return False
+
+        # POST to UpdateDatasources endpoint — the correct API for cloud datasources
+        update_url = f"{base_url}/Default.UpdateDatasources"
+        payload = {"updateDetails": update_details}
+
+        try:
+            resp = requests.post(update_url, headers=pbi_headers, json=payload, timeout=30)
+            logger.info("[Creds] UpdateDatasources response: %d %s", resp.status_code, resp.text[:300])
+
+            if resp.status_code in (200, 202, 204):
+                logger.info("[Creds] ✅ SharePoint credentials set successfully via UpdateDatasources API")
+                return True
+            elif resp.status_code == 400:
+                err_body = resp.json() if resp.text else {}
+                err_code = err_body.get("error", {}).get("code", "")
+                logger.warning("[Creds] UpdateDatasources 400: %s", err_code)
+
+                # Try with OAuth2 Anonymous fallback (some SharePoint configs allow this)
+                if "Credentials" in err_code or "credential" in err_code.lower():
+                    logger.info("[Creds] Trying OAuth2 Anonymous fallback...")
+                    anon_details = []
+                    for entry in update_details:
+                        anon_entry = dict(entry)
+                        anon_entry["credentialDetails"] = {
+                            "credentialType": "Anonymous",
+                            "credentials": "{}",
+                            "encryptedConnection": "NotEncrypted",
+                            "encryptionAlgorithm": "None",
+                            "privacyLevel": "Organizational",
+                        }
+                        anon_details.append(anon_entry)
+                    r2 = requests.post(
+                        update_url,
+                        headers=pbi_headers,
+                        json={"updateDetails": anon_details},
+                        timeout=30,
+                    )
+                    logger.info("[Creds] Anonymous fallback: %d %s", r2.status_code, r2.text[:200])
+                    return r2.status_code in (200, 202, 204)
+                return False
+            else:
+                logger.warning("[Creds] UpdateDatasources failed: %d", resp.status_code)
+                return False
+        except Exception as ex:
+            logger.warning("[Creds] UpdateDatasources error: %s", ex)
+            return False
+
+    def _takeover_and_refresh(self, dataset_id: str, pbi_headers: Dict) -> bool:
+        """
+        Full automated post-publish flow:
+          1. Wait 25s for model datasources to register in Power BI
+          2. TakeOver dataset (claim ownership as Service Principal)
+          3. Set SharePoint credentials via UpdateDatasources API (correct API for cloud)
+          4. Trigger refresh
+          5. Poll until Completed / Failed (max 3 min)
+
+        No manual steps needed IF SHAREPOINT_USERNAME + SHAREPOINT_PASSWORD are in .env
+        """
+        import time as _time
+        base_url = f"https://api.powerbi.com/v1.0/myorg/groups/{self.workspace_id}/datasets/{dataset_id}"
+
+        # ── Step 1: Wait for datasources to register ──────────────────────
+        logger.info("[Takeover] ⏳ Waiting 25s for datasources to register after publish...")
+        _time.sleep(25)
+
+        # ── Step 2: TakeOver dataset (makes SP the owner) ─────────────────
+        logger.info("[Takeover] 🔑 Taking over dataset ownership...")
+        try:
+            tr = requests.post(f"{base_url}/Default.TakeOver", headers=pbi_headers, json={}, timeout=30)
+            if tr.status_code in (200, 202, 204):
+                logger.info("[Takeover] ✅ TakeOver succeeded (%d)", tr.status_code)
+            elif tr.status_code == 403:
+                logger.warning("[Takeover] ⚠️  TakeOver 403 — SP may already be owner, continuing")
+            else:
+                logger.warning("[Takeover] TakeOver returned %d: %s", tr.status_code, tr.text[:200])
+        except Exception as ex:
+            logger.warning("[Takeover] TakeOver error: %s — continuing", ex)
+
+        # Small wait after takeover before setting credentials
+        _time.sleep(3)
+
+        # ── Step 3: Set SharePoint credentials (correct API for cloud) ────
+        logger.info("[Takeover] 🔐 Setting SharePoint credentials via UpdateDatasources API...")
+        cred_ok = self._set_sharepoint_credentials(dataset_id, pbi_headers)
+
+        if not cred_ok:
+            logger.warning(
+                "[Takeover] Credential set did not fully succeed. "
+                "Add to .env: SHAREPOINT_USERNAME=ponnuchamy.vellaikannu@sorimtechnologies.com "
+                "and SHAREPOINT_PASSWORD=YourPassword — then republish for full automation."
+            )
+
+        # Small wait after credential set before triggering refresh
+        _time.sleep(5)
+
+        # ── Step 4: Trigger refresh ───────────────────────────────────────
+        logger.info("[Takeover] 🔄 Triggering data refresh...")
+        refreshed = self._trigger_refresh(dataset_id, pbi_headers)
+
+        # ── Step 5: Poll until done ───────────────────────────────────────
+        if refreshed:
+            status = self._poll_refresh_status(dataset_id, pbi_headers, max_wait=180)
+            if status == "Completed":
+                logger.info("[Takeover] 🎉 Fully automated — data is live in Power BI!")
+            elif status == "Failed":
+                logger.warning(
+                    "[Takeover] ❌ Refresh failed — check that SHAREPOINT_USERNAME "
+                    "and SHAREPOINT_PASSWORD are correct in .env"
+                )
+        return refreshed
+
+    def _poll_refresh_status(self, dataset_id: str, headers: Dict, max_wait: int = 90) -> str:
+        """
+        Poll refresh every 8s until Completed/Failed or timeout (default 2min).
+        """
+        import time as _time
+        url = f"https://api.powerbi.com/v1.0/myorg/groups/{self.workspace_id}/datasets/{dataset_id}/refreshes"
+        logger.info("[Refresh Poll] Polling every 8s (max %ds)...", max_wait)
+        elapsed = 0
+        while elapsed < max_wait:
+            _time.sleep(8)
+            elapsed += 8
+            try:
+                r = requests.get(url, headers=headers, timeout=15)
+                if r.ok:
+                    refreshes = r.json().get("value", [])
+                    if not refreshes:
+                        logger.info("[Refresh Poll] %ds — still queued...", elapsed)
+                        continue
+                    status = refreshes[0].get("status", "Unknown")
+                    logger.info("[Refresh Poll] %ds — Status: %s", elapsed, status)
+                    if status == "Completed":
+                        logger.info("[Refresh Poll] ✅ Data loaded successfully!")
+                        return "Completed"
+                    if status == "Failed":
+                        err = refreshes[0].get("serviceExceptionJson", "")
+                        logger.warning("[Refresh Poll] ❌ Failed: %s", err[:300])
+                        logger.warning("[Refresh Poll] Go to Power BI Settings → Data source credentials → Sign in")
+                        return "Failed"
+            except Exception as ex:
+                logger.warning("[Refresh Poll] Error: %s", ex)
+        logger.warning("[Refresh Poll] Timed out — refresh may still run in background")
+        return "Unknown"
 
     # -- Strategy 2: Push Dataset (fallback) ----------------------------------
 

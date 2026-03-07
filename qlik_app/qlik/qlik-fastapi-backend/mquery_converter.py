@@ -29,14 +29,18 @@ _QLIK_TO_M_TYPE: Dict[str, str] = {
     "number":    "type number",
     "integer":   "Int64.Type",
     "int":       "Int64.Type",
+    "float":     "type number",
     "double":    "type number",
     "decimal":   "type number",
+    "currency":  "type number",
+    "money":     "type number",
     "date":      "type date",
     "time":      "type time",
     "datetime":  "type datetime",
     "timestamp": "type datetime",
     "boolean":   "type logical",
     "bool":      "type logical",
+    "bit":       "type logical",
     "mixed":     "type any",
     "wildcard":  "type text",
     "unknown":   "type text",
@@ -48,14 +52,18 @@ _QLIK_TO_M_TYPE_FOR_TABLE: Dict[str, str] = {
     "number":    "number",
     "integer":   "Int64.Type",
     "int":       "Int64.Type",
+    "float":     "number",
     "double":    "number",
     "decimal":   "number",
+    "currency":  "number",
+    "money":     "number",
     "date":      "date",
     "time":      "time",
     "datetime":  "datetime",
     "timestamp": "datetime",
     "boolean":   "logical",
     "bool":      "logical",
+    "bit":       "logical",
     "mixed":     "any",
     "wildcard":  "text",
     "unknown":   "text",
@@ -67,19 +75,21 @@ _DEFAULT_M_TYPE_FOR_TABLE = "text"
 
 def _m_type(qlik_type: str, col_name: str = "") -> str:
     """M type with 'type' prefix — for TransformColumnTypes.
-    
-    IMPORTANT: Composite keys (containing '-') and Qlik-qualified names
-    (Table.Column) are ALWAYS text regardless of inferred type.
+
+    Rules:
+    - Composite key columns (containing '-') → always text (e.g. DealerID-ServiceID)
+    - All other columns → use inferred Qlik type mapped to M type
+    - Dot-qualified names handled before this call by _strip_qlik_qualifier
     """
-    # Composite key or Qlik-qualified column name → always text
-    if "-" in col_name or ("." in col_name and not col_name.startswith("#")):
+    # Composite key columns always text (Power BI can't use them as keys otherwise)
+    if "-" in col_name:
         return "type text"
     return _QLIK_TO_M_TYPE.get(str(qlik_type).lower().strip(), _DEFAULT_M_TYPE)
 
 
 def _m_type_for_table(qlik_type: str, col_name: str = "") -> str:
     """M type WITHOUT 'type' prefix — for #table() column signatures."""
-    if "-" in col_name or ("." in col_name and not col_name.startswith("#")):
+    if "-" in col_name:
         return "text"
     return _QLIK_TO_M_TYPE_FOR_TABLE.get(str(qlik_type).lower().strip(), _DEFAULT_M_TYPE_FOR_TABLE)
 
@@ -159,6 +169,21 @@ def _build_sharepoint_m(
     """
     qvd_comment = "    // QVD converted to CSV — SharePoint.Files() reads the CSV version\n" if is_qvd else ""
     
+    # Extract the folder NAME from folder_path for Text.Contains filter
+    # folder_path examples:
+    #   "https://site.sharepoint.com/sites/ddrive/CSVFilesDatas/"  -> "CSVFilesDatas"
+    #   "https://site.sharepoint.com/sites/ddrive/SchoolFiles/"    -> "SchoolFiles"
+    #   "https://site.sharepoint.com/sites/ddrive/"                -> use site name as fallback
+    folder_name = folder_path.rstrip("/").rsplit("/", 1)[-1] if folder_path else ""
+    if not folder_name or folder_name == site_url.rstrip("/").rsplit("/", 1)[-1]:
+        # folder_path points to root — no subfolder filter, just match filename
+        folder_filter = f"        each Text.Lower([Name]) = Text.Lower(\"{filename}\")"
+    else:
+        folder_filter = (
+            f"        each Text.Contains([#\"Folder Path\"], \"{folder_name}\")\n"
+            f"             and Text.Lower([Name]) = Text.Lower(\"{filename}\")"
+        )
+
     m = (
         f"let\n"
         f"{qvd_comment}"
@@ -168,8 +193,7 @@ def _build_sharepoint_m(
         f"    ),\n"
         f"    FilteredFile = Table.SelectRows(\n"
         f"        Source,\n"
-        f"        each Text.Contains([#\"Folder Path\"], \"CSVFilesDatas\")\n"
-        f"             and Text.Lower([Name]) = Text.Lower(\"{filename}\")\n"
+        f"{folder_filter}\n"
         f"    ),\n"
         f"    FileBinary = FilteredFile{{0}}[Content],\n"
         f"    CsvData = Csv.Document(\n"
@@ -259,22 +283,68 @@ class MQueryConverter:
         """
         Returns (transform_step_str, final_step_name).
 
-        KEY FIX: Qlik-qualified field names like 'Table_Name.FieldName' are stripped
-        to just 'FieldName' because the CSV column has only the plain name.
-        Composite key fields (containing '-') are always typed as text.
+        FIX: Use the ORIGINAL CSV column name, not the Qlik alias.
+
+        Rules:
+        1. If field has a simple [FieldName] or FieldName expression:
+           - CSV column is the ORIGINAL name (expression), not the alias
+           - e.g. [DealerID] AS [DealerID-ServiceID] -> use DealerID (in CSV)
+        2. If field has a complex expression (APPLYMAP, functions, etc.):
+           - This is Qlik-computed, not in the CSV -> SKIP it
+        3. Strip Qlik table-qualified prefixes (Table.Column -> Column)
+        4. Composite key columns (containing -) always typed as text
+        5. Datatype is properly mapped from Qlik inferred type
         """
         typed = [f for f in fields if f.get("name") not in ("*", "")]
         if not typed:
             return "", previous_step
 
         pairs = []
+        seen_cols = set()
         for f in typed:
-            raw_name = f.get("alias") or f["name"]
-            # Strip Qlik table-qualified prefix → use the plain CSV column name
-            col_name = _strip_qlik_qualifier(raw_name)
-            # Get M type (composite keys and qualified names forced to text)
-            m_type = _m_type(f.get("type", "string"), raw_name)
-            pairs.append(f'{{"{col_name}", {m_type}}}')
+            expr      = f.get("expression", "") or ""
+            alias     = f.get("alias") or ""
+            field_name = f.get("name", "")
+
+            # Determine if this is a simple column reference or computed expression
+            expr_clean = expr.strip()
+            is_simple_col = (
+                # [FieldName] bracket style
+                (expr_clean.startswith("[") and expr_clean.endswith("]"))
+                # PlainFieldName no spaces/operators
+                or re.match(r"^[A-Za-z_][A-Za-z0-9_.]*$", expr_clean)
+                # Empty expression = direct field reference
+                or not expr_clean
+            )
+
+            if is_simple_col:
+                # Use the ORIGINAL field name from CSV (strip brackets)
+                if expr_clean.startswith("[") and expr_clean.endswith("]"):
+                    csv_col = expr_clean[1:-1]
+                elif expr_clean:
+                    csv_col = expr_clean
+                else:
+                    # Fallback: use alias stripped, then name stripped
+                    csv_col = _strip_qlik_qualifier(alias or field_name)
+            else:
+                # Complex expression (APPLYMAP, functions, arithmetic)
+                # This column does NOT exist in the CSV file — skip it
+                logger.debug("[apply_types] Skipping computed field: %s expr=%s", field_name, expr_clean[:60])
+                continue
+
+            # Strip Qlik table-qualified prefix e.g. Dealer_Master.City -> City
+            csv_col = _strip_qlik_qualifier(csv_col)
+
+            if not csv_col or csv_col in seen_cols:
+                continue
+            seen_cols.add(csv_col)
+
+            # Get correct M datatype
+            m_type = _m_type(f.get("type", "string"), csv_col)
+            pairs.append(f'{{"{csv_col}", {m_type}}}')
+
+        if not pairs:
+            return "", previous_step
 
         pairs_str = ",\n        ".join(pairs)
         transform = (
@@ -293,30 +363,40 @@ class MQueryConverter:
     def _get_sharepoint_parts(self, base_path: str, source_path: str, opts: dict):
         """
         Extract SharePoint site URL, folder path, and filename from inputs.
-        
+
+        Priority for folder selection:
+          1. opts["sp_subfolder"]      — user selected from Browse dropdown (e.g. "CSVFilesDatas")
+          2. opts["sharepoint_folder"] — alternative key for same
+          3. source_path has a /      — extract folder from the path
+          4. No folder info            — use root (no subfolder filter)
+
         Returns (site_url, folder_path, filename) all as plain strings (unquoted).
         """
         site_url = base_path.strip().strip('"').strip("'").rstrip("/")
-        
-        # Determine folder path
-        sp_subfolder = opts.get("sp_subfolder", "")
+
+        # Priority 1 & 2: user-selected folder from UI Browse dropdown
+        sp_subfolder = (
+            opts.get("sp_subfolder", "").strip()
+            or opts.get("sharepoint_folder", "").strip()
+        )
+
         if sp_subfolder:
+            # User explicitly chose a folder — use it directly
             folder_path = f"{site_url}/{sp_subfolder.strip('/')}/"
+        elif "/" in source_path:
+            # Priority 3: extract from source_path (e.g. "Data/marks.csv" -> "Data")
+            folder_part = source_path.rsplit("/", 1)[0]
+            folder_path = f"{site_url}/{folder_part}/"
         else:
-            # Try to extract folder from source_path
-            if "/" in source_path:
-                folder_part = source_path.rsplit("/", 1)[0]
-                folder_path = f"{site_url}/Shared Documents/{folder_part}/"
-            else:
-                # Default: CSVFilesDatas subfolder
-                folder_path = f"{site_url}/Shared Documents/CSVFilesDatas/"
-        
+            # Priority 4: no folder info — root level, no subfolder filter
+            folder_path = f"{site_url}/"
+
         # Determine filename
         filename = source_path.rsplit("/", 1)[-1] if "/" in source_path else source_path
         if not filename:
             table_name = opts.get("table_name", "Table")
             filename = f"{table_name}.csv"
-        
+
         return site_url, folder_path, filename
 
     # ============================================================
@@ -452,7 +532,7 @@ class MQueryConverter:
                 f"    ),\n"
                 f"    FilteredFile = Table.SelectRows(\n"
                 f"        Source,\n"
-                f"        each Text.Contains([#\"Folder Path\"], \"CSVFilesDatas\")\n"
+                f"        each Text.Contains([#\"Folder Path\"], \"{folder_path.rstrip(chr(47)).rsplit(chr(47),1)[-1]}\")\n"
                 f"             and Text.Lower([Name]) = Text.Lower(\"{filename}\")\n"
                 f"    ),\n"
                 f"    FileBinary = FilteredFile{{0}}[Content],\n"
@@ -508,7 +588,7 @@ class MQueryConverter:
                 f"    ),\n"
                 f"    FilteredFile = Table.SelectRows(\n"
                 f"        Source,\n"
-                f"        each Text.Contains([#\"Folder Path\"], \"CSVFilesDatas\")\n"
+                f"        each Text.Contains([#\"Folder Path\"], \"{folder_path.rstrip(chr(47)).rsplit(chr(47),1)[-1]}\")\n"
                 f"             and Text.Lower([Name]) = Text.Lower(\"{filename}\")\n"
                 f"    ),\n"
                 f"    FileBinary = FilteredFile{{0}}[Content],\n"
@@ -567,7 +647,7 @@ class MQueryConverter:
                 f"    ),\n"
                 f"    FilteredFile = Table.SelectRows(\n"
                 f"        Source,\n"
-                f"        each Text.Contains([#\"Folder Path\"], \"CSVFilesDatas\")\n"
+                f"        each Text.Contains([#\"Folder Path\"], \"{folder_path.rstrip(chr(47)).rsplit(chr(47),1)[-1]}\")\n"
                 f"             and Text.Lower([Name]) = Text.Lower(\"{filename}\")\n"
                 f"    ),\n"
                 f"    FileBinary = FilteredFile{{0}}[Content],\n"
@@ -616,7 +696,7 @@ class MQueryConverter:
                 f"    ),\n"
                 f"    FilteredFile = Table.SelectRows(\n"
                 f"        Source,\n"
-                f"        each Text.Contains([#\"Folder Path\"], \"CSVFilesDatas\")\n"
+                f"        each Text.Contains([#\"Folder Path\"], \"{folder_path.rstrip(chr(47)).rsplit(chr(47),1)[-1]}\")\n"
                 f"             and Text.Lower([Name]) = Text.Lower(\"{filename}\")\n"
                 f"    ),\n"
                 f"    FileBinary = FilteredFile{{0}}[Content],\n"
