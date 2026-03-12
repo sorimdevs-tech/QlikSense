@@ -57,9 +57,21 @@ jobs:
         pip install -r requirements.txt
 
     - name: Backend syntax check
-      working-directory: clinical-backend
+      working-directory: qlik_app/qlik/qlik-fastapi-backend
       run: python -m compileall .
+      
+    # =======================
+    # SONARQUBE
+    # =======================
+    - name: SonarQube Scan
+      uses: SonarSource/sonarqube-scan-action@master
+      env:
+        SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
 
+    # =======================
+    # CI SUMMARY
+    # =======================
     - name: Add CI Summary
       run: |
          echo "## Build Result" >> $GITHUB_STEP_SUMMARY
