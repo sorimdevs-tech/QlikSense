@@ -57,7 +57,7 @@ jobs:
         pip install -r requirements.txt
 
     - name: Backend syntax check
-      working-directory: clinical-backend
+      working-directory: qlik_app/qlik/qlik-fastapi-backend
       run: python -m compileall .
 
     - name: Add CI Summary
