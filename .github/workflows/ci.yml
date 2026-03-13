@@ -1,22 +1,21 @@
 name: CI Checks
-
 on:
   pull_request:
     branches: [ "main" ]
   push:
     branches: [ "main" ]
-
 jobs:
   ci:
     name: Frontend + Backend CI
     runs-on: ubuntu-latest
-
     steps:
     # -----------------------
     # Checkout code
     # -----------------------
     - name: Checkout repository
       uses: actions/checkout@v4
+      with:
+        fetch-depth: 0  # ✅ Required for SonarQube
 
     # =======================
     # FRONTEND (React + TS)
@@ -35,12 +34,10 @@ jobs:
     - name: Lint frontend
       working-directory: qlik_app/converter/csv
       run: npm run lint || true
-      # (|| true avoids failure if lint is not configured yet)
 
     - name: Test frontend
       working-directory: qlik_app/converter/csv
       run: npm test -- --watch=false || true
-      # (safe if tests are not fully set yet)
 
     # =======================
     # BACKEND (Python)
@@ -57,12 +54,24 @@ jobs:
         pip install -r requirements.txt
 
     - name: Backend syntax check
-      working-directory: clinical-backend
+      working-directory: qlik_app/qlik/qlik-fastapi-backend  # ✅ Fixed path
       run: python -m compileall .
 
+    # =======================
+    # SONARQUBE
+    # =======================
+    - name: SonarQube Scan
+      uses: SonarSource/sonarqube-scan-action@master
+      env:
+        SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
+
+    # =======================
+    # CI SUMMARY
+    # =======================
     - name: Add CI Summary
       run: |
-         echo "## Build Result" >> $GITHUB_STEP_SUMMARY
-          echo "✅ Backend build success" >> $GITHUB_STEP_SUMMARY
-          echo "🔎 Frontend + Backend CI completed" >> $GITHUB_STEP_SUMMARY
-          echo "📄 Logs: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}" >> $GITHUB_STEP_SUMMARY
+        echo "## Build Result" >> $GITHUB_STEP_SUMMARY
+        echo "✅ Backend build success" >> $GITHUB_STEP_SUMMARY
+        echo "🔎 Frontend + Backend CI completed" >> $GITHUB_STEP_SUMMARY
+        echo "📄 Logs: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}" >> $GITHUB_STEP_SUMMARY
