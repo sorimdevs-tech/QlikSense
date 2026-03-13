@@ -59,7 +59,16 @@ jobs:
     - name: Backend syntax check
       working-directory: clinical-backend
       run: python -m compileall .
-
+      
+    # =======================
+    # Sonar Scan
+    # =======================
+      
+    - name: SonarQube Scan
+      uses: SonarSource/sonarqube-scan-action@master
+      env:
+        SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
     - name: Add CI Summary
       run: |
          echo "## Build Result" >> $GITHUB_STEP_SUMMARY
