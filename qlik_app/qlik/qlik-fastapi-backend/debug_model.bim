@@ -1,0 +1,1689 @@
+{
+  "name": "admissions",
+  "compatibilityLevel": 1550,
+  "model": {
+    "culture": "en-US",
+    "dataAccessOptions": {
+      "legacyRedirects": true,
+      "returnErrorValuesAsNull": true
+    },
+    "defaultPowerBIDataSourceVersion": "powerBI_V3",
+    "sourceQueryCulture": "en-US",
+    "tables": [
+      {
+        "name": "diseases",
+        "columns": [
+          {
+            "name": "disease_id",
+            "dataType": "string",
+            "sourceColumn": "disease_id",
+            "summarizeBy": "none",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ]
+          },
+          {
+            "name": "disease_name",
+            "dataType": "string",
+            "sourceColumn": "disease_name",
+            "summarizeBy": "none",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ]
+          },
+          {
+            "name": "category",
+            "dataType": "string",
+            "sourceColumn": "category",
+            "summarizeBy": "none",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ]
+          },
+          {
+            "name": "disease_type",
+            "dataType": "string",
+            "sourceColumn": "disease_type",
+            "summarizeBy": "none",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ]
+          },
+          {
+            "name": "common_symptoms",
+            "dataType": "string",
+            "sourceColumn": "common_symptoms",
+            "summarizeBy": "none",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ]
+          },
+          {
+            "name": "treatment_duration_days",
+            "dataType": "string",
+            "sourceColumn": "treatment_duration_days",
+            "summarizeBy": "none",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ]
+          },
+          {
+            "name": "severity_level",
+            "dataType": "string",
+            "sourceColumn": "severity_level",
+            "summarizeBy": "none",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ]
+          },
+          {
+            "name": "is_contagious",
+            "dataType": "string",
+            "sourceColumn": "is_contagious",
+            "summarizeBy": "none",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ]
+          },
+          {
+            "name": "recommended_doctor_type",
+            "dataType": "string",
+            "sourceColumn": "recommended_doctor_type",
+            "summarizeBy": "none",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ]
+          },
+          {
+            "name": "avg_treatment_cost",
+            "dataType": "string",
+            "sourceColumn": "avg_treatment_cost",
+            "summarizeBy": "none",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ]
+          }
+        ],
+        "partitions": [
+          {
+            "name": "diseases-Partition",
+            "mode": "import",
+            "source": {
+              "type": "m",
+              "expression": [
+                "let",
+                "    SiteUrl = \"https://sorimtechnologies.sharepoint.com\",",
+                "    FileName = \"diseases.csv\",",
+                "    Source = SharePoint.Files(SiteUrl, [ApiVersion = 15]),",
+                "    FilteredByName = Table.SelectRows(",
+                "        Source,",
+                "        each Text.Lower([Name]) = Text.Lower(FileName)",
+                "    ),",
+                "    FilteredByLib = if Table.RowCount(FilteredByName) > 1",
+                "        then Table.SelectRows(FilteredByName, each Text.Contains([Folder Path], \"Shared Documents\"))",
+                "        else FilteredByName,",
+                "    FileBinary = if Table.RowCount(FilteredByLib) = 0",
+                "        then error \"File \" & FileName & \" not found under \" & SiteUrl &",
+                "             \". Ensure the file exists in SharePoint and credentials are set.\"",
+                "        else FilteredByLib{0}[Content],",
+                "    CsvData = Csv.Document(",
+                "        FileBinary,",
+                "        [Delimiter=\",\", Encoding=65001, QuoteStyle=QuoteStyle.Csv]",
+                "    ),",
+                "    PromotedHeaders = Table.PromoteHeaders(CsvData, [PromoteAllScalars=true]),",
+                "    TypedTable = Table.TransformColumnTypes(",
+                "        PromotedHeaders,",
+                "        {",
+                "        {\"disease_id\", type text},",
+                "        {\"disease_name\", type text},",
+                "        {\"category\", type text},",
+                "        {\"disease_type\", type text},",
+                "        {\"common_symptoms\", type text},",
+                "        {\"treatment_duration_days\", Int64.Type},",
+                "        {\"severity_level\", type text},",
+                "        {\"is_contagious\", type logical},",
+                "        {\"recommended_doctor_type\", type text},",
+                "        {\"avg_treatment_cost\", type number}",
+                "        }",
+                "    )",
+                "in",
+                "    TypedTable"
+              ]
+            }
+          }
+        ]
+      },
+      {
+        "name": "admissions",
+        "columns": [
+          {
+            "name": "admission_id",
+            "dataType": "string",
+            "sourceColumn": "admission_id",
+            "summarizeBy": "none",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ]
+          },
+          {
+            "name": "patient_id",
+            "dataType": "string",
+            "sourceColumn": "patient_id",
+            "summarizeBy": "none",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ]
+          },
+          {
+            "name": "doctor_id",
+            "dataType": "string",
+            "sourceColumn": "doctor_id",
+            "summarizeBy": "none",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ]
+          },
+          {
+            "name": "disease_id",
+            "dataType": "string",
+            "sourceColumn": "disease_id",
+            "summarizeBy": "none",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ]
+          },
+          {
+            "name": "admission_date",
+            "dataType": "string",
+            "sourceColumn": "admission_date",
+            "summarizeBy": "none",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ]
+          },
+          {
+            "name": "discharge_date",
+            "dataType": "string",
+            "sourceColumn": "discharge_date",
+            "summarizeBy": "none",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ]
+          },
+          {
+            "name": "ward_type",
+            "dataType": "string",
+            "sourceColumn": "ward_type",
+            "summarizeBy": "none",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ]
+          },
+          {
+            "name": "ward_no",
+            "dataType": "string",
+            "sourceColumn": "ward_no",
+            "summarizeBy": "none",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ]
+          },
+          {
+            "name": "bed_no",
+            "dataType": "string",
+            "sourceColumn": "bed_no",
+            "summarizeBy": "none",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ]
+          },
+          {
+            "name": "admission_status",
+            "dataType": "string",
+            "sourceColumn": "admission_status",
+            "summarizeBy": "none",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ]
+          },
+          {
+            "name": "surgery_performed",
+            "dataType": "string",
+            "sourceColumn": "surgery_performed",
+            "summarizeBy": "none",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ]
+          },
+          {
+            "name": "surgery_type",
+            "dataType": "string",
+            "sourceColumn": "surgery_type",
+            "summarizeBy": "none",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ]
+          },
+          {
+            "name": "total_bill",
+            "dataType": "string",
+            "sourceColumn": "total_bill",
+            "summarizeBy": "none",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ]
+          },
+          {
+            "name": "payment_method",
+            "dataType": "string",
+            "sourceColumn": "payment_method",
+            "summarizeBy": "none",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ]
+          },
+          {
+            "name": "insurance_claimed",
+            "dataType": "string",
+            "sourceColumn": "insurance_claimed",
+            "summarizeBy": "none",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ]
+          },
+          {
+            "name": "attending_nurse",
+            "dataType": "string",
+            "sourceColumn": "attending_nurse",
+            "summarizeBy": "none",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ]
+          },
+          {
+            "name": "remarks",
+            "dataType": "string",
+            "sourceColumn": "remarks",
+            "summarizeBy": "none",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ]
+          }
+        ],
+        "partitions": [
+          {
+            "name": "admissions-Partition",
+            "mode": "import",
+            "source": {
+              "type": "m",
+              "expression": [
+                "let",
+                "    SiteUrl = \"https://sorimtechnologies.sharepoint.com\",",
+                "    FileName = \"admissions.csv\",",
+                "    Source = SharePoint.Files(SiteUrl, [ApiVersion = 15]),",
+                "    FilteredByName = Table.SelectRows(",
+                "        Source,",
+                "        each Text.Lower([Name]) = Text.Lower(FileName)",
+                "    ),",
+                "    FilteredByLib = if Table.RowCount(FilteredByName) > 1",
+                "        then Table.SelectRows(FilteredByName, each Text.Contains([Folder Path], \"Shared Documents\"))",
+                "        else FilteredByName,",
+                "    FileBinary = if Table.RowCount(FilteredByLib) = 0",
+                "        then error \"File \" & FileName & \" not found under \" & SiteUrl &",
+                "             \". Ensure the file exists in SharePoint and credentials are set.\"",
+                "        else FilteredByLib{0}[Content],",
+                "    CsvData = Csv.Document(",
+                "        FileBinary,",
+                "        [Delimiter=\",\", Encoding=65001, QuoteStyle=QuoteStyle.Csv]",
+                "    ),",
+                "    PromotedHeaders = Table.PromoteHeaders(CsvData, [PromoteAllScalars=true]),",
+                "    TypedTable = Table.TransformColumnTypes(",
+                "        PromotedHeaders,",
+                "        {",
+                "        {\"admission_id\", type text},",
+                "        {\"patient_id\", type text},",
+                "        {\"doctor_id\", type text},",
+                "        {\"disease_id\", type text},",
+                "        {\"admission_date\", type date},",
+                "        {\"discharge_date\", type date},",
+                "        {\"ward_type\", type text},",
+                "        {\"ward_no\", Int64.Type},",
+                "        {\"bed_no\", Int64.Type},",
+                "        {\"admission_status\", type text},",
+                "        {\"surgery_performed\", type text},",
+                "        {\"surgery_type\", type text},",
+                "        {\"total_bill\", type number},",
+                "        {\"payment_method\", type text},",
+                "        {\"insurance_claimed\", type text},",
+                "        {\"attending_nurse\", type text},",
+                "        {\"remarks\", type text}",
+                "        }",
+                "    )",
+                "in",
+                "    TypedTable"
+              ]
+            }
+          }
+        ]
+      },
+      {
+        "name": "patients",
+        "columns": [
+          {
+            "name": "patient_id",
+            "dataType": "string",
+            "sourceColumn": "patient_id",
+            "summarizeBy": "none",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ]
+          },
+          {
+            "name": "patient_name",
+            "dataType": "string",
+            "sourceColumn": "patient_name",
+            "summarizeBy": "none",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ]
+          },
+          {
+            "name": "age",
+            "dataType": "string",
+            "sourceColumn": "age",
+            "summarizeBy": "none",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ]
+          },
+          {
+            "name": "gender",
+            "dataType": "string",
+            "sourceColumn": "gender",
+            "summarizeBy": "none",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ]
+          },
+          {
+            "name": "blood_group",
+            "dataType": "string",
+            "sourceColumn": "blood_group",
+            "summarizeBy": "none",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ]
+          },
+          {
+            "name": "phone",
+            "dataType": "string",
+            "sourceColumn": "phone",
+            "summarizeBy": "none",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ]
+          },
+          {
+            "name": "email",
+            "dataType": "string",
+            "sourceColumn": "email",
+            "summarizeBy": "none",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ]
+          },
+          {
+            "name": "city",
+            "dataType": "string",
+            "sourceColumn": "city",
+            "summarizeBy": "none",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ]
+          },
+          {
+            "name": "address",
+            "dataType": "string",
+            "sourceColumn": "address",
+            "summarizeBy": "none",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ]
+          },
+          {
+            "name": "emergency_contact",
+            "dataType": "string",
+            "sourceColumn": "emergency_contact",
+            "summarizeBy": "none",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ]
+          },
+          {
+            "name": "registration_date",
+            "dataType": "string",
+            "sourceColumn": "registration_date",
+            "summarizeBy": "none",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ]
+          },
+          {
+            "name": "insurance_provider",
+            "dataType": "string",
+            "sourceColumn": "insurance_provider",
+            "summarizeBy": "none",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ]
+          },
+          {
+            "name": "insurance_policy_no",
+            "dataType": "string",
+            "sourceColumn": "insurance_policy_no",
+            "summarizeBy": "none",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ]
+          },
+          {
+            "name": "marital_status",
+            "dataType": "string",
+            "sourceColumn": "marital_status",
+            "summarizeBy": "none",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ]
+          },
+          {
+            "name": "occupation",
+            "dataType": "string",
+            "sourceColumn": "occupation",
+            "summarizeBy": "none",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ]
+          }
+        ],
+        "partitions": [
+          {
+            "name": "patients-Partition",
+            "mode": "import",
+            "source": {
+              "type": "m",
+              "expression": [
+                "let",
+                "    SiteUrl = \"https://sorimtechnologies.sharepoint.com\",",
+                "    FileName = \"patients.csv\",",
+                "    Source = SharePoint.Files(SiteUrl, [ApiVersion = 15]),",
+                "    FilteredByName = Table.SelectRows(",
+                "        Source,",
+                "        each Text.Lower([Name]) = Text.Lower(FileName)",
+                "    ),",
+                "    FilteredByLib = if Table.RowCount(FilteredByName) > 1",
+                "        then Table.SelectRows(FilteredByName, each Text.Contains([Folder Path], \"Shared Documents\"))",
+                "        else FilteredByName,",
+                "    FileBinary = if Table.RowCount(FilteredByLib) = 0",
+                "        then error \"File \" & FileName & \" not found under \" & SiteUrl &",
+                "             \". Ensure the file exists in SharePoint and credentials are set.\"",
+                "        else FilteredByLib{0}[Content],",
+                "    CsvData = Csv.Document(",
+                "        FileBinary,",
+                "        [Delimiter=\",\", Encoding=65001, QuoteStyle=QuoteStyle.Csv]",
+                "    ),",
+                "    PromotedHeaders = Table.PromoteHeaders(CsvData, [PromoteAllScalars=true]),",
+                "    TypedTable = Table.TransformColumnTypes(",
+                "        PromotedHeaders,",
+                "        {",
+                "        {\"patient_id\", type text},",
+                "        {\"patient_name\", type text},",
+                "        {\"age\", Int64.Type},",
+                "        {\"gender\", type text},",
+                "        {\"blood_group\", type text},",
+                "        {\"phone\", type text},",
+                "        {\"email\", type text},",
+                "        {\"city\", type text},",
+                "        {\"address\", type text},",
+                "        {\"emergency_contact\", type text},",
+                "        {\"registration_date\", type date},",
+                "        {\"insurance_provider\", type text},",
+                "        {\"insurance_policy_no\", Int64.Type},",
+                "        {\"marital_status\", type text},",
+                "        {\"occupation\", type text}",
+                "        }",
+                "    )",
+                "in",
+                "    TypedTable"
+              ]
+            }
+          }
+        ]
+      },
+      {
+        "name": "doctors",
+        "columns": [
+          {
+            "name": "doctor_id",
+            "dataType": "string",
+            "sourceColumn": "doctor_id",
+            "summarizeBy": "none",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ]
+          },
+          {
+            "name": "doctor_name",
+            "dataType": "string",
+            "sourceColumn": "doctor_name",
+            "summarizeBy": "none",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ]
+          },
+          {
+            "name": "gender",
+            "dataType": "string",
+            "sourceColumn": "gender",
+            "summarizeBy": "none",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ]
+          },
+          {
+            "name": "doctor_type",
+            "dataType": "string",
+            "sourceColumn": "doctor_type",
+            "summarizeBy": "none",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ]
+          },
+          {
+            "name": "specialization",
+            "dataType": "string",
+            "sourceColumn": "specialization",
+            "summarizeBy": "none",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ]
+          },
+          {
+            "name": "qualification",
+            "dataType": "string",
+            "sourceColumn": "qualification",
+            "summarizeBy": "none",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ]
+          },
+          {
+            "name": "experience_years",
+            "dataType": "string",
+            "sourceColumn": "experience_years",
+            "summarizeBy": "none",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ]
+          },
+          {
+            "name": "department",
+            "dataType": "string",
+            "sourceColumn": "department",
+            "summarizeBy": "none",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ]
+          },
+          {
+            "name": "city",
+            "dataType": "string",
+            "sourceColumn": "city",
+            "summarizeBy": "none",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ]
+          },
+          {
+            "name": "phone",
+            "dataType": "string",
+            "sourceColumn": "phone",
+            "summarizeBy": "none",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ]
+          },
+          {
+            "name": "email",
+            "dataType": "string",
+            "sourceColumn": "email",
+            "summarizeBy": "none",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ]
+          },
+          {
+            "name": "joining_date",
+            "dataType": "string",
+            "sourceColumn": "joining_date",
+            "summarizeBy": "none",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ]
+          },
+          {
+            "name": "consultation_fee",
+            "dataType": "string",
+            "sourceColumn": "consultation_fee",
+            "summarizeBy": "none",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ]
+          },
+          {
+            "name": "available_days",
+            "dataType": "string",
+            "sourceColumn": "available_days",
+            "summarizeBy": "none",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ]
+          },
+          {
+            "name": "status",
+            "dataType": "string",
+            "sourceColumn": "status",
+            "summarizeBy": "none",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ]
+          }
+        ],
+        "partitions": [
+          {
+            "name": "doctors-Partition",
+            "mode": "import",
+            "source": {
+              "type": "m",
+              "expression": [
+                "let",
+                "    SiteUrl = \"https://sorimtechnologies.sharepoint.com\",",
+                "    FileName = \"doctors.csv\",",
+                "    Source = SharePoint.Files(SiteUrl, [ApiVersion = 15]),",
+                "    FilteredByName = Table.SelectRows(",
+                "        Source,",
+                "        each Text.Lower([Name]) = Text.Lower(FileName)",
+                "    ),",
+                "    FilteredByLib = if Table.RowCount(FilteredByName) > 1",
+                "        then Table.SelectRows(FilteredByName, each Text.Contains([Folder Path], \"Shared Documents\"))",
+                "        else FilteredByName,",
+                "    FileBinary = if Table.RowCount(FilteredByLib) = 0",
+                "        then error \"File \" & FileName & \" not found under \" & SiteUrl &",
+                "             \". Ensure the file exists in SharePoint and credentials are set.\"",
+                "        else FilteredByLib{0}[Content],",
+                "    CsvData = Csv.Document(",
+                "        FileBinary,",
+                "        [Delimiter=\",\", Encoding=65001, QuoteStyle=QuoteStyle.Csv]",
+                "    ),",
+                "    PromotedHeaders = Table.PromoteHeaders(CsvData, [PromoteAllScalars=true]),",
+                "    TypedTable = Table.TransformColumnTypes(",
+                "        PromotedHeaders,",
+                "        {",
+                "        {\"doctor_id\", type text},",
+                "        {\"doctor_name\", type text},",
+                "        {\"gender\", type text},",
+                "        {\"doctor_type\", type text},",
+                "        {\"specialization\", type text},",
+                "        {\"qualification\", type text},",
+                "        {\"experience_years\", Int64.Type},",
+                "        {\"department\", type text},",
+                "        {\"city\", type text},",
+                "        {\"phone\", type text},",
+                "        {\"email\", type text},",
+                "        {\"joining_date\", type date},",
+                "        {\"consultation_fee\", type number},",
+                "        {\"available_days\", Int64.Type},",
+                "        {\"status\", type text}",
+                "        }",
+                "    )",
+                "in",
+                "    TypedTable"
+              ]
+            }
+          }
+        ]
+      },
+      {
+        "name": "Treatment_Master",
+        "columns": [
+          {
+            "name": "treatment_id",
+            "dataType": "string",
+            "sourceColumn": "treatment_id",
+            "summarizeBy": "none",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ]
+          },
+          {
+            "name": "patient_id",
+            "dataType": "string",
+            "sourceColumn": "patient_id",
+            "summarizeBy": "none",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ]
+          },
+          {
+            "name": "doctor_id",
+            "dataType": "string",
+            "sourceColumn": "doctor_id",
+            "summarizeBy": "none",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ]
+          },
+          {
+            "name": "disease_id",
+            "dataType": "string",
+            "sourceColumn": "disease_id",
+            "summarizeBy": "none",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ]
+          },
+          {
+            "name": "patient_name",
+            "dataType": "string",
+            "sourceColumn": "patient_name",
+            "summarizeBy": "none",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ]
+          },
+          {
+            "name": "patient_age",
+            "dataType": "string",
+            "sourceColumn": "patient_age",
+            "summarizeBy": "none",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ]
+          },
+          {
+            "name": "patient_gender",
+            "dataType": "string",
+            "sourceColumn": "patient_gender",
+            "summarizeBy": "none",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ]
+          },
+          {
+            "name": "patient_city",
+            "dataType": "string",
+            "sourceColumn": "patient_city",
+            "summarizeBy": "none",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ]
+          },
+          {
+            "name": "patient_blood_group",
+            "dataType": "string",
+            "sourceColumn": "patient_blood_group",
+            "summarizeBy": "none",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ]
+          },
+          {
+            "name": "patient_occupation",
+            "dataType": "string",
+            "sourceColumn": "patient_occupation",
+            "summarizeBy": "none",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ]
+          },
+          {
+            "name": "doctor_name",
+            "dataType": "string",
+            "sourceColumn": "doctor_name",
+            "summarizeBy": "none",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ]
+          },
+          {
+            "name": "doctor_type",
+            "dataType": "string",
+            "sourceColumn": "doctor_type",
+            "summarizeBy": "none",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ]
+          },
+          {
+            "name": "doctor_specialization",
+            "dataType": "string",
+            "sourceColumn": "doctor_specialization",
+            "summarizeBy": "none",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ]
+          },
+          {
+            "name": "doctor_experience_years",
+            "dataType": "string",
+            "sourceColumn": "doctor_experience_years",
+            "summarizeBy": "none",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ]
+          },
+          {
+            "name": "doctor_qualification",
+            "dataType": "string",
+            "sourceColumn": "doctor_qualification",
+            "summarizeBy": "none",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ]
+          },
+          {
+            "name": "hospital_name",
+            "dataType": "string",
+            "sourceColumn": "hospital_name",
+            "summarizeBy": "none",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ]
+          },
+          {
+            "name": "hospital_city",
+            "dataType": "string",
+            "sourceColumn": "hospital_city",
+            "summarizeBy": "none",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ]
+          },
+          {
+            "name": "disease_name",
+            "dataType": "string",
+            "sourceColumn": "disease_name",
+            "summarizeBy": "none",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ]
+          },
+          {
+            "name": "disease_category",
+            "dataType": "string",
+            "sourceColumn": "disease_category",
+            "summarizeBy": "none",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ]
+          },
+          {
+            "name": "disease_type",
+            "dataType": "string",
+            "sourceColumn": "disease_type",
+            "summarizeBy": "none",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ]
+          },
+          {
+            "name": "disease_severity",
+            "dataType": "string",
+            "sourceColumn": "disease_severity",
+            "summarizeBy": "none",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ]
+          },
+          {
+            "name": "is_contagious",
+            "dataType": "string",
+            "sourceColumn": "is_contagious",
+            "summarizeBy": "none",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ]
+          },
+          {
+            "name": "treatment_start_date",
+            "dataType": "string",
+            "sourceColumn": "treatment_start_date",
+            "summarizeBy": "none",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ]
+          },
+          {
+            "name": "treatment_end_date",
+            "dataType": "string",
+            "sourceColumn": "treatment_end_date",
+            "summarizeBy": "none",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ]
+          },
+          {
+            "name": "treatment_duration_days",
+            "dataType": "string",
+            "sourceColumn": "treatment_duration_days",
+            "summarizeBy": "none",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ]
+          },
+          {
+            "name": "admission_mode",
+            "dataType": "string",
+            "sourceColumn": "admission_mode",
+            "summarizeBy": "none",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ]
+          },
+          {
+            "name": "room_type",
+            "dataType": "string",
+            "sourceColumn": "room_type",
+            "summarizeBy": "none",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ]
+          },
+          {
+            "name": "prescription_type",
+            "dataType": "string",
+            "sourceColumn": "prescription_type",
+            "summarizeBy": "none",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ]
+          },
+          {
+            "name": "medication_prescribed",
+            "dataType": "string",
+            "sourceColumn": "medication_prescribed",
+            "summarizeBy": "none",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ]
+          },
+          {
+            "name": "dosage",
+            "dataType": "string",
+            "sourceColumn": "dosage",
+            "summarizeBy": "none",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ]
+          },
+          {
+            "name": "tests_conducted",
+            "dataType": "string",
+            "sourceColumn": "tests_conducted",
+            "summarizeBy": "none",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ]
+          },
+          {
+            "name": "diet_plan",
+            "dataType": "string",
+            "sourceColumn": "diet_plan",
+            "summarizeBy": "none",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ]
+          },
+          {
+            "name": "attending_nurse",
+            "dataType": "string",
+            "sourceColumn": "attending_nurse",
+            "summarizeBy": "none",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ]
+          },
+          {
+            "name": "follow_up_required",
+            "dataType": "string",
+            "sourceColumn": "follow_up_required",
+            "summarizeBy": "none",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ]
+          },
+          {
+            "name": "complications",
+            "dataType": "string",
+            "sourceColumn": "complications",
+            "summarizeBy": "none",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ]
+          },
+          {
+            "name": "total_treatment_cost",
+            "dataType": "string",
+            "sourceColumn": "total_treatment_cost",
+            "summarizeBy": "none",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ]
+          },
+          {
+            "name": "consultation_fee",
+            "dataType": "string",
+            "sourceColumn": "consultation_fee",
+            "summarizeBy": "none",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ]
+          },
+          {
+            "name": "insurance_provider",
+            "dataType": "string",
+            "sourceColumn": "insurance_provider",
+            "summarizeBy": "none",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ]
+          },
+          {
+            "name": "insurance_claimed",
+            "dataType": "string",
+            "sourceColumn": "insurance_claimed",
+            "summarizeBy": "none",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ]
+          },
+          {
+            "name": "insurance_amount_covered",
+            "dataType": "string",
+            "sourceColumn": "insurance_amount_covered",
+            "summarizeBy": "none",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ]
+          },
+          {
+            "name": "out_of_pocket_expense",
+            "dataType": "string",
+            "sourceColumn": "out_of_pocket_expense",
+            "summarizeBy": "none",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ]
+          },
+          {
+            "name": "payment_method",
+            "dataType": "string",
+            "sourceColumn": "payment_method",
+            "summarizeBy": "none",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ]
+          },
+          {
+            "name": "treatment_status",
+            "dataType": "string",
+            "sourceColumn": "treatment_status",
+            "summarizeBy": "none",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ]
+          },
+          {
+            "name": "outcome",
+            "dataType": "string",
+            "sourceColumn": "outcome",
+            "summarizeBy": "none",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ]
+          },
+          {
+            "name": "patient_satisfaction",
+            "dataType": "string",
+            "sourceColumn": "patient_satisfaction",
+            "summarizeBy": "none",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ]
+          },
+          {
+            "name": "readmission_risk",
+            "dataType": "string",
+            "sourceColumn": "readmission_risk",
+            "summarizeBy": "none",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ]
+          },
+          {
+            "name": "remarks",
+            "dataType": "string",
+            "sourceColumn": "remarks",
+            "summarizeBy": "none",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ]
+          }
+        ],
+        "partitions": [
+          {
+            "name": "Treatment_Master-Partition",
+            "mode": "import",
+            "source": {
+              "type": "m",
+              "expression": [
+                "let",
+                "    SiteUrl = \"https://sorimtechnologies.sharepoint.com\",",
+                "    FileName = \"Treatment_Master.csv\",",
+                "    Source = SharePoint.Files(SiteUrl, [ApiVersion = 15]),",
+                "    FilteredByName = Table.SelectRows(",
+                "        Source,",
+                "        each Text.Lower([Name]) = Text.Lower(FileName)",
+                "    ),",
+                "    FilteredByLib = if Table.RowCount(FilteredByName) > 1",
+                "        then Table.SelectRows(FilteredByName, each Text.Contains([Folder Path], \"Shared Documents\"))",
+                "        else FilteredByName,",
+                "    FileBinary = if Table.RowCount(FilteredByLib) = 0",
+                "        then error \"File \" & FileName & \" not found under \" & SiteUrl &",
+                "             \". Ensure the file exists in SharePoint and credentials are set.\"",
+                "        else FilteredByLib{0}[Content],",
+                "    CsvData = Csv.Document(",
+                "        FileBinary,",
+                "        [Delimiter=\",\", Encoding=65001, QuoteStyle=QuoteStyle.Csv]",
+                "    ),",
+                "    PromotedHeaders = Table.PromoteHeaders(CsvData, [PromoteAllScalars=true]),",
+                "    TypedTable = Table.TransformColumnTypes(",
+                "        PromotedHeaders,",
+                "        {",
+                "        {\"treatment_id\", type text},",
+                "        {\"patient_id\", type text},",
+                "        {\"doctor_id\", type text},",
+                "        {\"disease_id\", type text},",
+                "        {\"patient_name\", type text},",
+                "        {\"patient_age\", Int64.Type},",
+                "        {\"patient_gender\", type text},",
+                "        {\"patient_city\", type text},",
+                "        {\"patient_blood_group\", type text},",
+                "        {\"patient_occupation\", type text},",
+                "        {\"doctor_name\", type text},",
+                "        {\"doctor_type\", type text},",
+                "        {\"doctor_specialization\", type text},",
+                "        {\"doctor_experience_years\", Int64.Type},",
+                "        {\"doctor_qualification\", type text},",
+                "        {\"hospital_name\", type text},",
+                "        {\"hospital_city\", type text},",
+                "        {\"disease_name\", type text},",
+                "        {\"disease_category\", type text},",
+                "        {\"disease_type\", type text},",
+                "        {\"disease_severity\", type text},",
+                "        {\"is_contagious\", type logical},",
+                "        {\"treatment_start_date\", type date},",
+                "        {\"treatment_end_date\", type date},",
+                "        {\"treatment_duration_days\", Int64.Type},",
+                "        {\"admission_mode\", type text},",
+                "        {\"room_type\", type text},",
+                "        {\"prescription_type\", type text},",
+                "        {\"medication_prescribed\", type text},",
+                "        {\"dosage\", Int64.Type},",
+                "        {\"tests_conducted\", type text},",
+                "        {\"diet_plan\", type text},",
+                "        {\"attending_nurse\", type text},",
+                "        {\"follow_up_required\", type text},",
+                "        {\"complications\", type text},",
+                "        {\"total_treatment_cost\", type number},",
+                "        {\"consultation_fee\", type number},",
+                "        {\"insurance_provider\", type text},",
+                "        {\"insurance_claimed\", type text},",
+                "        {\"insurance_amount_covered\", type number},",
+                "        {\"out_of_pocket_expense\", type number},",
+                "        {\"payment_method\", type text},",
+                "        {\"treatment_status\", type text},",
+                "        {\"outcome\", type text},",
+                "        {\"patient_satisfaction\", type text},",
+                "        {\"readmission_risk\", type text},",
+                "        {\"remarks\", type text}",
+                "        }",
+                "    )",
+                "in",
+                "    TypedTable"
+              ]
+            }
+          }
+        ]
+      }
+    ],
+    "relationships": [
+      {
+        "name": "admissions_disease_id_diseases_disease_id",
+        "fromTable": "admissions",
+        "fromColumn": "disease_id",
+        "toTable": "diseases",
+        "toColumn": "disease_id",
+        "crossFilteringBehavior": "oneDirection"
+      },
+      {
+        "name": "admissions_disease_id_Treatment_Master_disease_id",
+        "fromTable": "admissions",
+        "fromColumn": "disease_id",
+        "toTable": "Treatment_Master",
+        "toColumn": "disease_id",
+        "crossFilteringBehavior": "oneDirection"
+      },
+      {
+        "name": "admissions_patient_id_patients_patient_id",
+        "fromTable": "admissions",
+        "fromColumn": "patient_id",
+        "toTable": "patients",
+        "toColumn": "patient_id",
+        "crossFilteringBehavior": "oneDirection"
+      },
+      {
+        "name": "admissions_patient_id_Treatment_Master_patient_id",
+        "fromTable": "admissions",
+        "fromColumn": "patient_id",
+        "toTable": "Treatment_Master",
+        "toColumn": "patient_id",
+        "crossFilteringBehavior": "oneDirection"
+      },
+      {
+        "name": "admissions_doctor_id_doctors_doctor_id",
+        "fromTable": "admissions",
+        "fromColumn": "doctor_id",
+        "toTable": "doctors",
+        "toColumn": "doctor_id",
+        "crossFilteringBehavior": "oneDirection"
+      },
+      {
+        "name": "admissions_doctor_id_Treatment_Master_doctor_id",
+        "fromTable": "admissions",
+        "fromColumn": "doctor_id",
+        "toTable": "Treatment_Master",
+        "toColumn": "doctor_id",
+        "crossFilteringBehavior": "oneDirection"
+      },
+      {
+        "name": "diseases_disease_id_Treatment_Master_disease_id",
+        "fromTable": "diseases",
+        "fromColumn": "disease_id",
+        "toTable": "Treatment_Master",
+        "toColumn": "disease_id",
+        "crossFilteringBehavior": "oneDirection"
+      },
+      {
+        "name": "doctors_doctor_id_Treatment_Master_doctor_id",
+        "fromTable": "doctors",
+        "fromColumn": "doctor_id",
+        "toTable": "Treatment_Master",
+        "toColumn": "doctor_id",
+        "crossFilteringBehavior": "oneDirection"
+      },
+      {
+        "name": "patients_patient_id_Treatment_Master_patient_id",
+        "fromTable": "patients",
+        "fromColumn": "patient_id",
+        "toTable": "Treatment_Master",
+        "toColumn": "patient_id",
+        "crossFilteringBehavior": "oneDirection"
+      }
+    ],
+    "expressions": [
+      {
+        "name": "DataSourcePath",
+        "kind": "m",
+        "expression": [
+          "\"https://sorimtechnologies.sharepoint.com\""
+        ],
+        "annotations": [
+          {
+            "name": "IsParameterQuery",
+            "value": "True"
+          },
+          {
+            "name": "IsParameterQueryRequired",
+            "value": "False"
+          },
+          {
+            "name": "PBI_QueryOrder",
+            "value": "0"
+          }
+        ]
+      }
+    ],
+    "annotations": [
+      {
+        "name": "PBIDesktopVersion",
+        "value": "2.130.930.0"
+      },
+      {
+        "name": "createdBy",
+        "value": "QlikAI_Accelerator"
+      }
+    ]
+  }
+}

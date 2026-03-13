@@ -26,10 +26,10 @@ export default function MigrationPage() {
         }}>
           <h3 style={{ marginTop: 0, color: "#856404" }}>⚠️ No Data to Migrate</h3>
           <p style={{ color: "#856404", marginBottom: "20px" }}>
-            Please go back to the Export page and select CSV and/or DAX format before migrating.
+            Please go back to the Publish page and select CSV and/or DAX format before migrating.
           </p>
           <button
-            onClick={() => navigate("/export")}
+            onClick={() => navigate("/publish")}
             style={{
               padding: "12px 24px",
               backgroundColor: "#ffc107",
@@ -41,7 +41,7 @@ export default function MigrationPage() {
               fontWeight: "bold"
             }}
           >
-            ← Back to Export
+            ← Back to Publish
           </button>
         </div>
       </div>

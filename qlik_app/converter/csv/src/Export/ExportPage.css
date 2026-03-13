@@ -10,7 +10,7 @@
 
 .info-grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(4, 1fr);
   gap: 16px;
   margin-bottom: 24px;
 }
@@ -159,7 +159,17 @@
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
+@media (max-width: 1200px) {
+  .info-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
 @media (max-width: 768px) {
+  .info-grid {
+    grid-template-columns: 1fr;
+  }
+
   .page-actions {
     justify-content: center;
   }
@@ -378,10 +388,9 @@
 }
 
 .analysis-time {
-  font-size: 14px;
-  font-weight: 600;
+  font-size: 12px;
   color: #0d98e8;
-  background: #e0f2fe;
+  background: rgba(10, 102, 194, 0.06);
   padding: 6px 12px;
   border-radius: 6px;
 }
@@ -438,6 +447,53 @@
 }
 
 /* ===============================
+   TABLES LIST CONTAINER (Multi-Select)
+   =============================== */
+
+.tables-list-container {
+  background: #f9fafb;
+  border-radius: 10px;
+  padding: 16px;
+  margin-bottom: 24px;
+  border: 1px solid #e5e7eb;
+}
+
+.tables-list-container h3 {
+  margin: 0 0 12px 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: #374151;
+}
+
+.tables-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.table-item-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: #fff;
+  border: 1px solid #d1d5db;
+  border-radius: 20px;
+  padding: 6px 12px;
+  font-size: 13px;
+  color: #374151;
+}
+
+.table-item-chip span:first-child {
+  font-weight: 600;
+  color: #1f2937;
+}
+
+.table-item-chip .row-count {
+  color: #6b7280;
+  font-size: 12px;
+}
+
+/* ===============================
    RESPONSIVE FOR SMALLER SCREENS
    =============================== */
 
@@ -456,4 +512,174 @@
     width: 100%;
     text-align: right;
   }
+}
+
+/* 🔹 TABLE STRUCTURE SECTION */
+.table-structure-section {
+  margin: 28px 0;
+  padding: 20px;
+  background: #f8fafc;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+}
+
+.table-structure-section h3 {
+  margin: 0 0 16px 0;
+  color: #0f172a;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.table-structure-card {
+  background: white;
+  border: 1px solid #ddd;
+  border-radius: 10px;
+  padding: 16px;
+  margin-bottom: 16px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+
+.table-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+  padding-bottom: 12px;
+  border-bottom: 2px solid #e2e8f0;
+}
+
+.table-header h4 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+  color: #0078d4;
+}
+
+.row-info {
+  font-size: 13px;
+  font-weight: 600;
+  color: #475569;
+  background: #f1f5f9;
+  padding: 6px 12px;
+  border-radius: 6px;
+}
+
+.columns-section {
+  margin: 12px 0;
+}
+
+.columns-section strong {
+  display: block;
+  margin-bottom: 8px;
+  color: #1e293b;
+  font-size: 13px;
+}
+
+.columns-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.column-chip {
+  background: #dbeafe;
+  color: #0369a1;
+  padding: 6px 12px;
+  border-radius: 5px;
+  font-size: 12px;
+  font-weight: 600;
+  border: 1px solid #0369a1;
+}
+
+.sample-data-section {
+  margin-top: 12px;
+}
+
+.sample-data-section strong {
+  display: block;
+  margin-bottom: 8px;
+  color: #1e293b;
+  font-size: 13px;
+}
+
+.preview-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+  background: #f9fafb;
+}
+
+.preview-table thead {
+  background: #e2e8f0;
+}
+
+.preview-table th {
+  padding: 10px;
+  text-align: left;
+  font-weight: 600;
+  color: #334155;
+  border: 1px solid #cbd5e1;
+}
+
+.preview-table td {
+  padding: 8px 10px;
+  border: 1px solid #e2e8f0;
+  color: #475569;
+  max-width: 150px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.preview-table tbody tr:nth-child(even) {
+  background: white;
+}
+
+.preview-table tbody tr:nth-child(odd) {
+  background: #f9fafb;
+}
+
+/* 🔹 COMBINING INFO SECTION */
+.combining-info-section {
+  margin: 28px 0;
+  padding: 20px;
+  background: #f0fdf4;
+  border-radius: 12px;
+  border: 2px solid #22c55e;
+}
+
+.combining-info-section h3 {
+  margin: 0 0 16px 0;
+  color: #16a34a;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.info-card {
+  background: white;
+  border: 1px solid #86efac;
+  border-radius: 10px;
+  padding: 16px;
+  color: #1b5e20;
+}
+
+.info-card p {
+  margin: 10px 0;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.info-card strong {
+  color: #15803d;
+}
+
+.info-card ul {
+  margin: 8px 0 8px 20px;
+  padding: 0;
+}
+
+.info-card li {
+  margin: 6px 0;
+  font-size: 14px;
+  color: #1b5e20;
 }

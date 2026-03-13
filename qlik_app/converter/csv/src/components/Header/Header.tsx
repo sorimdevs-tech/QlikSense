@@ -1,7 +1,28 @@
 import "./Header.css";
 import qlikaiLogo from "../../assets/qlikai.png";
+import { useNavigate } from "react-router-dom";
+import { useState, useEffect } from "react";
 
 export default function Header() {
+  const navigate = useNavigate();
+  const [userInfo, setUserInfo] = useState<any>(null);
+
+  useEffect(() => {
+    // Check for user info in session
+    const tenantUrl = sessionStorage.getItem("tenant_url");
+    if (tenantUrl) {
+      setUserInfo({ tenant: tenantUrl });
+    }
+  }, []);
+
+  const handleLogout = () => {
+    // Clear all session storage
+    sessionStorage.clear();
+    
+    // Navigate to connect page
+    navigate("/connect");
+  };
+
   return (
     <div>
 
@@ -17,7 +38,13 @@ export default function Header() {
       <div className="header-right">
         <a href="#">Docs</a>
         <a href="#">Support</a>
-        <div className="profile">👤</div>
+        {userInfo ? (
+          <div className="profile" onClick={handleLogout} style={{ cursor: "pointer" }} title="Click to logout">
+            👤 {userInfo.name || userInfo.email}
+          </div>
+        ) : (
+          <div className="profile">👤</div>
+        )}
       </div>
       
     </header>

@@ -150,17 +150,30 @@ class PowerBIService:
         return created.get("id"), True
 
     def push_rows(self, dataset_id: str, table_name: str, rows: List[Dict[str, Any]]) -> Dict[str, Any]:
-        """Push data rows to a dataset table"""
+        """Push data rows to a dataset table (chunked to respect Power BI per-request limits)."""
+        if not rows:
+            return {"status_code": 200, "chunks": 0, "rows": 0}
+
+        CHUNK_SIZE = 10000
+        total_rows = len(rows)
+        chunks = 0
+
         if self.use_personal_workspace:
-            url = f"{PBI_API_ROOT}/datasets/{dataset_id}/tables/{table_name}/rows"
+            base_url = f"{PBI_API_ROOT}/datasets/{dataset_id}/tables/{table_name}/rows"
         else:
-            url = f"{PBI_API_ROOT}/groups/{self.workspace_id}/datasets/{dataset_id}/tables/{table_name}/rows"
-        
-        payload = {"rows": rows}
-        r = requests.post(url, headers=self._headers(), data=json.dumps(payload), timeout=120)
-        if r.status_code not in (200, 202):
-            raise Exception(f"Failed to push rows: {r.status_code} {r.text}")
-        return {"status_code": r.status_code}
+            base_url = f"{PBI_API_ROOT}/groups/{self.workspace_id}/datasets/{dataset_id}/tables/{table_name}/rows"
+
+        for start in range(0, total_rows, CHUNK_SIZE):
+            end = min(start + CHUNK_SIZE, total_rows)
+            chunk_rows = rows[start:end]
+            payload = {"rows": chunk_rows}
+            r = requests.post(base_url, headers=self._headers(), data=json.dumps(payload), timeout=120)
+            chunks += 1
+            if r.status_code not in (200, 202):
+                raise Exception(f"Failed to push rows (chunk {chunks}, rows {start}-{end}): {r.status_code} {r.text}")
+            print(f"✓ Pushed chunk {chunks}: rows {start + 1}-{end} to dataset {dataset_id}")
+
+        return {"status_code": 200, "chunks": chunks, "rows": total_rows}
 
     def trigger_refresh(self, dataset_id: str) -> Dict[str, Any]:
         """Trigger dataset refresh"""

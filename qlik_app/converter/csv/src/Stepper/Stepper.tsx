@@ -125,8 +125,7 @@ import { useNavigate, useLocation } from "react-router-dom";
 import connectImg from "../assets/connect3.jpg";
 import discoveryImg from "../assets/discovery.png";
 import summaryImg from "../assets/summary3.png";
-import exportImg from "../assets/export2.png";
-import migrationImg from "../assets/migration2.png";
+import exportImg from "../assets/export.png";
 import publishImg from "../assets/Publish.png";
 
 const steps = [
@@ -134,8 +133,7 @@ const steps = [
   { id: 2, label: "Discovery", sub: "Apps & Metadata", icon: discoveryImg, path: "/apps" },
   { id: 3, label: "Summary", sub: "Assessment", icon: summaryImg, path: "/summary" },
   { id: 4, label: "Export", sub: "Build & Convert", icon: exportImg, path: "/export" },
-  { id: 5, label: "Review", sub: "Review Results", icon: migrationImg, path: "/migration" },
-  { id: 6, label: "Publish", sub: "Publish Results", icon: publishImg, path: "/publish" }
+  { id: 5, label: "Publish", sub: "Publish Results", icon: publishImg, path: "/publish" }
 ];
  
 export default function Stepper() {
@@ -147,8 +145,7 @@ export default function Stepper() {
     if (url.includes("/apps")) return 2;
     if (url.includes("/summary")) return 3;
     if (url.includes("/export")) return 4;
-    if (url.includes("/migration")) return 5;
-    if (url.includes("/publish")) return 6;
+    if (url.includes("/publish")) return 5;
     return 1;
   };
  
@@ -159,14 +156,12 @@ export default function Stepper() {
     const appSelected = !!sessionStorage.getItem("appSelected");
     const summaryComplete = sessionStorage.getItem("summaryComplete") === "true";
     const exportComplete = sessionStorage.getItem("exportComplete") === "true";
-    const migrationComplete = sessionStorage.getItem("migrationComplete") === "true";
 
     if (path === "/") return navigate(path);
     if (path === "/apps" && !connected) return navigate("/");
     if (path === "/summary" && !appSelected) return navigate("/apps");
     if (path === "/export" && !summaryComplete) return navigate("/summary");
-    if (path === "/migration" && !exportComplete) return navigate("/export");
-    if (path === "/publish" && !migrationComplete) return navigate("/migration");
+    if (path === "/publish" && !exportComplete) return navigate("/export");
 
     navigate(path);
   };
@@ -176,14 +171,12 @@ export default function Stepper() {
     const appSelected = !!sessionStorage.getItem("appSelected");
     const summaryComplete = sessionStorage.getItem("summaryComplete") === "true";
     const exportComplete = sessionStorage.getItem("exportComplete") === "true";
-    const migrationComplete = sessionStorage.getItem("migrationComplete") === "true";
 
     if (id === 1) return false;
     if (id === 2) return !connected;
     if (id === 3) return !appSelected;
     if (id === 4) return !summaryComplete;
     if (id === 5) return !exportComplete;
-    if (id === 6) return !migrationComplete; // Publish only accessible via button on Review page
 
     return false;
   };

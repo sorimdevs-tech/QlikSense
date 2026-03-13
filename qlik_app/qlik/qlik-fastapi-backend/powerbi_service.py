@@ -129,18 +129,31 @@ class PowerBIService:
         created = self.create_push_dataset(unique_name, table_name, columns_schema)
         return created.get("id"), True
 
-    # Push rows to a push dataset table
+    # Push rows to a push dataset table (handles large payloads by chunking)
     def push_rows(self, dataset_id: str, table_name: str, rows: List[Dict[str, Any]]) -> Dict[str, Any]:
+        if not rows:
+            return {"status_code": 200, "chunks": 0, "rows": 0}
+
+        # Power BI has a per-request maximum row count (≈10000). Send in chunks to avoid 413 errors.
+        CHUNK_SIZE = 10000
+        total_rows = len(rows)
+        chunks = 0
+
         if self.use_personal_workspace:
-            url = f"{PBI_API_ROOT}/datasets/{dataset_id}/tables/{table_name}/rows"
+            base_url = f"{PBI_API_ROOT}/datasets/{dataset_id}/tables/{table_name}/rows"
         else:
-            url = f"{PBI_API_ROOT}/groups/{self.workspace_id}/datasets/{dataset_id}/tables/{table_name}/rows"
-        payload = {"rows": rows}
-        r = requests.post(url, headers=self._headers(), data=json.dumps(payload), timeout=120)
-        if r.status_code not in (200, 202):
-            raise Exception(f"Failed to push rows: {r.status_code} {r.text}")
-        # 200 OK or 202 Accepted
-        return {"status_code": r.status_code}
+            base_url = f"{PBI_API_ROOT}/groups/{self.workspace_id}/datasets/{dataset_id}/tables/{table_name}/rows"
+
+        for start in range(0, total_rows, CHUNK_SIZE):
+            end = min(start + CHUNK_SIZE, total_rows)
+            chunk_rows = rows[start:end]
+            payload = {"rows": chunk_rows}
+            r = requests.post(base_url, headers=self._headers(), data=json.dumps(payload), timeout=120)
+            chunks += 1
+            if r.status_code not in (200, 202):
+                raise Exception(f"Failed to push rows (chunk {chunks}, rows {start}-{end}): {r.status_code} {r.text}")
+
+        return {"status_code": 200, "chunks": chunks, "rows": total_rows}
 
     def trigger_refresh(self, dataset_id: str) -> Dict[str, Any]:
         if self.use_personal_workspace:
